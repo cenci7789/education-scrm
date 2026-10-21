@@ -4,8 +4,8 @@ run("permissionChangeIdentity('admin');nav('classes')");
 assert(page().includes('classOpenDetail(0)'));assert(!page().includes('详情 / 编辑'));
 run('classOpenDetail(0)');assert.equal(run('state.page'),'classDetail');
 assert.equal(node('#crumb').textContent,'教务 / 教学管理 / 班级详情');
-const basic=page().indexOf('建课基本信息'),fee=page().indexOf('收费信息'),tabs=page().indexOf('role="tablist"');
-assert(basic>=0&&fee>basic&&tabs>fee);assert(page().includes('虚设座位'));assert(page().includes('¥1000.00'));
+const basic=page().indexOf('建课基本信息'),tabs=page().indexOf('role="tablist"');
+assert(basic>=0&&tabs>basic);assert(page().includes('虚设座位'));assert(!page().includes('收费信息'));assert(!page().includes('前往课程管理'));
 assert(!page().includes('入学资格'));assert(!page().includes('讲义下载'));assert(!page().includes('class-charge'));
 assert(page().includes('2026-09-20'));assert(page().includes('查看全部考勤'));
 run('classDetailShowAttendance(0)');assert(page().includes('张同学'));assert(page().includes('讲次考勤')||page().includes('第1讲考勤记录'));
@@ -22,22 +22,22 @@ assert(!page().includes('售卖信息'));assert(!page().includes('class-fee'));a
 assert(page().includes('saveClass()'));assert(page().includes('class-schedule'));
 run('classOpenCreate(0)');assert(!page().includes('售卖信息'));assert(page().includes('saveClass()'));
 
-// Course fees are persisted, shown in read-only detail and used by enrollment.
+// Course fees remain managed by courses and used by enrollment, without a detail-page fee panel.
 run('courseOpenForm(0)');assert.match(page(),/id="course-fee"[^>]*value="1000"/);
 node('#course-name').value=run('a.courses[0].name');node('#course-category').value='班课';node('#course-format').value='面授';
 node('#course-fee').value='600';node('#course-material').value='25';
 run("a.courseSessionDraft.sessions=[{id:'first',name:'第一讲内容'},{id:'second',name:'第二讲内容'}];saveCourse()");
 assert.equal(run('a.courses[0].fee'),600);assert.equal(run('a.courses[0].materialFee'),25);
 run('a.classes[0].fee=9999;a.classes[0].materialFee=888;classOpenDetail(0)');
-assert(page().includes('¥600.00'));assert(page().includes('¥25.00'));assert(!page().includes('9999'));
+assert(!page().includes('¥600.00'));assert(!page().includes('¥25.00'));assert(!page().includes('9999'));
 assert.equal(run('enrollmentClassPrice({classId:a.classes[0].id,startSession:2}).totalCents'),32500);
 run('courseOpenForm(0)');assert.match(page(),/id="course-material"[^>]*value="25"/);
 node('#course-name').value='更名后的语文课程';node('#course-fee').value='700';node('#course-material').value='0';run('saveCourse()');
 assert.equal(run('a.classes[0].course'),'更名后的语文课程');
-run('classOpenDetail(0)');assert(page().includes('¥700.00'));assert(page().includes('¥0.00'));
+run('classOpenDetail(0)');assert(!page().includes('收费信息'));
 assert.equal(run('enrollmentClassPrice({classId:a.classes[0].id,startSession:1}).totalCents'),70000);
 run('courseOpenForm(0)');node('#course-fee').value='-1';run('saveCourse()');assert.equal(run('a.courses[0].fee'),700);
-node('#course-fee').value='';run('saveCourse();classOpenDetail(0)');assert(page().includes('未设置'));
+node('#course-fee').value='';run('saveCourse();classOpenDetail(0)');assert(!page().includes('收费信息'));
 assert.equal(run('enrollmentClassPrice({classId:a.classes[0].id,startSession:1})'),null,'unset course fee cannot silently use a class fee');
 run('a.courses[0].fee=0;a.courses[0].sessions=[]');assert.equal(run('enrollmentClassPrice({classId:a.classes[0].id,startSession:1})'),null);
 
@@ -49,4 +49,4 @@ run("permissionChangeIdentity('finance')");assert.equal(run("permissionCanVisit(
 run("state.page='classDetail';academicRender()");assert(!page().includes('建课基本信息'));
 run("permissionChangeIdentity('academic');classOpenDetail(1)");assert(page().includes('建课基本信息'));
 run('a.classes=a.classes.filter(c=>c.id!==a.classDetailId);academicRender()');assert(page().includes('班级不存在或已移除'));
-console.log('PASS: separate detail/edit routes, three-section layout, lesson/student tabs and search, scoped attendance, permissions, shared course pricing/save/rename and missing-price validation.');
+console.log('PASS: separate detail/edit routes, basic information and lesson/student tabs without fee panel, scoped attendance, permissions, shared course pricing/save/rename and missing-price validation.');
