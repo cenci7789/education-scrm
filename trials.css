@@ -1,0 +1,14 @@
+.trial-steps{display:flex;gap:22px;padding:0 0 24px;margin:0 0 24px;border-bottom:1px solid #e7edf5;list-style:none;color:#8b9aac;flex-wrap:wrap}
+.trial-steps li{display:flex;align-items:center;gap:8px}.trial-steps b{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#f0f3f8}
+.trial-steps .active{color:#315deb;font-weight:600}.trial-steps .active b{background:#315deb;color:white}
+.trial-panel{margin-bottom:22px}.trial-summary{display:grid;grid-template-columns:130px minmax(0,1fr);gap:16px;margin:20px 0;max-width:900px}
+.trial-summary dt{color:#7b8ba2}.trial-summary dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.trial-pending{background:#fff3dc;color:#b5791f}.trial-summary-card{background:#f7f9fe;border:1px solid #e1e8f5;padding:20px;border-radius:9px}
+.trial-modal{max-width:760px;width:calc(100% - 32px);max-height:90vh;overflow:auto}
+.trial-table-note{display:block;color:#8796aa;margin-top:5px;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.trial-success{border-left:4px solid #315deb}.trial-roster{margin-top:24px}
+.trial-session-date{white-space:nowrap}.trial-session-weekday{color:#f04438;font-size:12px;margin-left:4px}
+.my-trial-actions{display:flex;gap:8px;flex-wrap:wrap;min-width:150px}
+.trial-intention-shell{background:transparent;border:0;box-shadow:none}.trial-intention-shell>.pad{padding:0}.trial-class-module{margin-bottom:22px}.trial-booking-module .field{margin-top:20px}.trial-booking-module .section-title,.trial-class-module .section-title{margin-top:0}.trial-booking-module .table{margin-bottom:20px}
+@media(max-width:680px){.trial-summary{grid-template-columns:90px minmax(0,1fr)}.trial-steps{gap:12px}.trial-steps li{font-size:12px}}
+.trial-confirm-section+.trial-confirm-section{border-top:1px solid #e1e8f5;margin-top:24px;padding-top:24px}.trial-confirm-section .section-title{margin:0 0 18px}.trial-confirm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 28px;margin:0 0 20px}.trial-confirm-grid:last-child{margin-bottom:0}.trial-confirm-field{display:flex;gap:12px;min-width:0;align-items:baseline;line-height:1.7}.trial-confirm-field dt{flex:0 0 80px;color:#7b8ba2}.trial-confirm-field dd{margin:0;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}.trial-confirm-field.full{grid-column:1/-1}.trial-confirm-section .table-wrap{margin-bottom:20px}.trial-modal .trial-confirm-grid{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:1000px){.trial-confirm-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:640px){.trial-confirm-grid,.trial-modal .trial-confirm-grid{grid-template-columns:1fr;gap:12px}.trial-confirm-field dt{flex-basis:76px}}

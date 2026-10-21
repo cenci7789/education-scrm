@@ -1,0 +1,44 @@
+const assert=require('node:assert/strict');
+const {run,node,page}=require('./lead-registration.cjs');
+run("permissionChangeIdentity('sales');leadDetail(0,'myLeads')");
+function intentHTML(){return page().match(/<select[^>]*id="communication-intent"[\s\S]*?<\/select>/)[0]}
+for(const level of ['高意向','中意向','低意向','无意向']){
+  run(`leadState.leads[0].intent='${level}';leadOpenUpload('电话')`);
+  const html=intentHTML();
+  assert(html.includes(`value="${level}" selected`));
+  assert.equal((html.match(/ selected/g)||[]).length,1);
+  assert(!html.includes('value="keep"'));assert(!html.includes('value="unknown"'));
+  for(const option of ['高意向','中意向','低意向','无意向'])assert(html.includes(`value="${option}"`));
+  run('leadCloseUpload()');
+}
+run("leadState.leads[0].intent='';leadOpenUpload()");
+assert(intentHTML().includes('value="" selected'));
+run("leadCloseUpload();leadState.leads[0].intent='中意向';leadOpenUpload('企微')");
+node('#communication-result').value='有效沟通';
+node('#communication-intent').value='中意向';
+node('#follow-channel').value='企微';
+node('#communication-reason').value='';
+node('#follow-time').value='';
+node('#lead-record-note').value='意向保持不变';
+run('leadChangeCommunicationResult()');
+assert.equal(node('#communication-intent').disabled,false);
+assert.equal(node('#communication-reason-field').hidden,true);
+run('leadSaveUpload()');
+assert.equal(run('leadState.leads[0].intent'),'中意向');
+run("leadOpenUpload('企微')");
+assert(intentHTML().includes('value="中意向" selected'));
+node('#communication-intent').value='高意向';
+node('#communication-reason').value='已确认报名计划';
+node('#lead-record-note').value='家长准备报名';
+run('leadSaveUpload();leadOpenUpload()');
+assert(intentHTML().includes('value="高意向" selected'));
+run("leadCloseUpload();leadOpenForm('edit')");
+node('#lead-edit-note').value='';
+node('#communication-result').value='';
+node('#communication-intent').value='高意向';
+node('#communication-reason').value='';
+node('#follow-time').value='';
+assert.equal(run('leadPrepareBasicCommunication()'),null,'default intention alone must not create a follow-up');
+node('#communication-intent').value='低意向';
+assert.equal(run('leadPrepareBasicCommunication()'),false,'an explicit change still requires communication details');
+console.log('PASS: previous intention preselected across four levels, empty default for unassessed leads, editable/save/reopen latest intent, optional basic edit ignores untouched default.');

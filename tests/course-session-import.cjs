@@ -1,0 +1,38 @@
+const assert=require('node:assert/strict');
+const {run,node,page}=require('./lead-registration.cjs');
+async function main(){
+  run("permissionChangeIdentity('admin');courseOpenForm(null)");
+  assert(page().includes('批量导入'));
+  node('#course-name').value='批量导入课程';node('#course-category').value='班课';node('#course-format').value='面授';
+  run('addSession()');node('#course-session-name').value='原有讲次';run('courseConfirmSession();courseOpenSessionImport()');
+  assert(node('#course-session-modal').innerHTML.includes('下载CSV模板'));
+  node('#course-import-text').value='讲次序号\t讲次名称\r\n第8讲\t有理数\r\n第9讲\t实数综合';
+  run('courseSessionImportChanged()');
+  assert(node('#course-import-preview').innerHTML.includes('第2讲'));
+  assert.equal(run('a.courseSessionDraft.sessions.length'),1,'preview has no mutations');
+  run('courseConfirmSessionImport();courseConfirmSessionImport()');
+  assert.equal(run('a.courseSessionDraft.sessions.length'),3);
+  assert(node('#session-list').innerHTML.includes('<td>第3讲</td><td>实数综合</td>'));
+  assert.equal(node('#course-name').value,'批量导入课程');
+  run('courseOpenSessionImport()');node('#course-import-text').value='讲次名称\n合格名称\n'+ '长'.repeat(101);
+  run('courseConfirmSessionImport()');assert.equal(run('a.courseSessionDraft.sessions.length'),3,'invalid batch cannot partially import');
+  assert(node('#course-import-preview').innerHTML.includes('超过100字'));
+  run('courseCloseSession();courseOpenSessionImport()');
+  await run(String.raw`courseReadSessionFile({name:'课程.csv',size:100,text:async()=> '\uFEFF讲次名称\r\n"函数,图象"\r\n"含""引号"""'})`);
+  assert(node('#course-import-preview').innerHTML.includes('函数,图象'));
+  run('courseConfirmSessionImport()');assert.equal(run('a.courseSessionDraft.sessions.length'),5);
+  run('courseRemoveSession(1);saveCourse()');
+  assert.deepEqual(JSON.parse(run('JSON.stringify(a.courses[0].sessions.map(s=>s.number))')),[1,2,3,4]);
+  assert.equal(run('a.courses[0].sessions[3].name'),'含"引号"');
+  run('courseOpenForm(0);courseOpenSessionImport()');
+  const reading=run(`courseReadSessionFile({name:'slow.txt',size:10,text:()=>new Promise(resolve=>globalThis.finishImportRead=resolve)})`);
+  run('courseCloseSession();courseOpenSessionImport()');node('#course-import-text').value='新的草稿';
+  run("finishImportRead('过期文件内容')");await reading;
+  assert.equal(node('#course-import-text').value,'新的草稿','stale file reads cannot overwrite a new dialog');
+  run('courseCloseSession()');assert.equal(run('a.courses[0].sessions.length'),4);
+  assert(run(String.raw`courseParseSessionImport('讲次名称\n"未闭合').errors.length>0`));
+  assert(run(String.raw`courseParseSessionImport(Array(501).fill('课程').join('\n')).errors.length>0`));
+  assert.equal(run(String.raw`courseParseSessionImport('1\t标题一\n2\t标题二').names.length`),2);
+  console.log('PASS: batch preview/import, Excel paste/CSV BOM/quotes, auto numbering, atomic validation, cancellation, duplicate submit, saved sessions and stale file guard.');
+}
+main().catch(error=>{console.error(error);process.exitCode=1});

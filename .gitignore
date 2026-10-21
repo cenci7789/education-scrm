@@ -1,0 +1,9 @@
+.artifact-work/
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+*.inspect.ndjson
+Thumbs.db
+.DS_Store

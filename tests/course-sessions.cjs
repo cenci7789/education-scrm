@@ -1,0 +1,36 @@
+const assert=require('node:assert/strict');
+const {run,node,page}=require('./lead-registration.cjs');
+run("permissionChangeIdentity('admin');courseOpenForm(null)");
+node('#course-name').value='自动编号课程';node('#course-category').value='班课';node('#course-format').value='面授';
+run('addSession()');
+assert(node('#course-session-modal').innerHTML.includes('role="dialog"'));
+assert(node('#course-session-modal').innerHTML.includes('第1讲'));
+node('#course-session-name').value='  ';run('courseConfirmSession()');
+assert.equal(run('a.courseSessionDraft.sessions.length'),0);
+run('courseCloseSession()');assert.equal(run('a.courseSessionDraft.sessions.length'),0);
+for(const name of ['第一课题','第二课题','第三课题']){
+  run('addSession()');node('#course-session-name').value=name;run('courseConfirmSession()');
+}
+assert.equal(node('#course-name').value,'自动编号课程','modal updates preserve the surrounding form');
+const thirdId=run('a.courseSessionDraft.sessions[2].id');
+run('courseRemoveSession(1)');
+assert.equal(run('a.courseSessionDraft.sessions.length'),2);
+assert.equal(run('a.courseSessionDraft.sessions[1].id'),thirdId,'deletion preserves remaining session identity');
+assert(node('#session-list').innerHTML.includes('<td>第2讲</td><td>第三课题</td>'));
+assert(!node('#session-list').innerHTML.includes('第3讲'));
+run('addSession()');assert(node('#course-session-modal').innerHTML.includes('第3讲'));
+node('#course-session-name').value='新课题';run('courseConfirmSession();courseConfirmSession()');
+assert.equal(run('a.courseSessionDraft.sessions.length'),3,'double confirmation cannot append twice');
+run('courseEditSession(0)');node('#course-session-name').value='<新名称>';run('courseConfirmSession()');
+assert(node('#session-list').innerHTML.includes('&lt;新名称&gt;'));
+run('saveCourse()');
+assert.deepEqual(JSON.parse(run('JSON.stringify(a.courses[0].sessions.map(s=>s.number))')),[1,2,3]);
+assert.equal(run('a.courses[0].sessions[1].id'),thirdId);
+run('courseOpenForm(0)');assert(page().includes('第三课题'));assert(page().includes('第3讲'));
+run('courseRemoveSession(0)');
+assert.equal(run('a.courses[0].sessions.length'),3,'editing a draft does not mutate the saved course');
+run("nav('course');courseOpenForm(0)");assert.equal(run('a.courseSessionDraft.sessions.length'),3,'leaving without saving discards session edits');
+run('courseRemoveSession(2);courseRemoveSession(1);courseRemoveSession(0)');
+assert(node('#session-list').innerHTML.includes('尚未添加讲次'));
+run('addSession()');assert(node('#course-session-modal').innerHTML.includes('第1讲'));
+console.log('PASS: session modal, required names, cancel, dynamic numbering, stable IDs, edit/escape, save/reopen and unsaved draft isolation.');

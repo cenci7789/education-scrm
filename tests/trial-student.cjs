@@ -1,0 +1,67 @@
+const assert=require('node:assert/strict');
+const {run,node,page,context}=require('./lead-registration.cjs');
+const revoked=[];let sequence=0;
+context.URL={createObjectURL:()=> 'blob:trial-'+(++sequence),revokeObjectURL:url=>revoked.push(url)};
+run("permissionChangeIdentity('admin');trialStart()");
+assert(page().includes('单个预约'));assert(page().includes('批量预约'));
+assert(page().includes('选择已有学生'));assert(page().includes('清空已选学生'));
+assert.equal((page().match(/class="required"/g)||[]).length,3);
+assert(!page().match(/<details class="enrollment-optional"[^>]*\sopen[ >]/));
+const optional=page().slice(page().indexOf('<details class="enrollment-optional"'));
+const ordered=['>公立学校</label>','>学生性别</label>','>咨询家长</label>','>来源渠道</label>','>信息记录</label>'];
+for(let i=1;i<ordered.length;i++)assert(optional.indexOf(ordered[i])>optional.indexOf(ordered[i-1]));
+for(const label of ['展开更多','上传图片','直接录音','上传语音'])assert(optional.includes(label));
+const query=context.document.querySelector,queryAll=context.document.querySelectorAll;
+let schoolRows=[],gender='';
+context.document.querySelectorAll=selector=>selector==='.trial-school-row'?schoolRows:queryAll(selector);
+context.document.querySelector=selector=>selector==='input[name="trial-gender"]:checked'?{value:gender}:query(selector);
+function fill(){
+  for(const [key,value] of Object.entries({name:'试听表单测试',phone:'13912345678',grade:'小三',guardian:'爸爸',source:'转介绍',information:'沟通记录 <原文>'}))node('#trial-'+key).value=value;
+}
+const students=run('a.students.length'),orders=run('a.orders.length');
+for(const missing of ['name','phone','grade']){
+  fill();node('#trial-'+missing).value='';run('trialNextStep()');
+  assert.equal(run('trialState.step'),1,missing+' must be required');
+}
+fill();gender='女';node('#trial-optional').open=true;
+schoolRows=[{querySelector:selector=>({value:selector.endsWith('-stage')?'小学':selector.endsWith('-name')?'实验小学':'2024'})}];
+run("leadAddRecordFiles([{name:'预约截图.png',type:'image/png',size:50}],'image');trialChooseStudent()");
+assert(page().includes('role="dialog"'));assert(page().includes('trial-student-title'));
+run("trialSearchStudent('12562728')");
+assert(node('#trial-student-results').innerHTML.includes('张同学'));
+assert(!node('#trial-student-results').innerHTML.includes('李同学'));
+run('trialCloseStudent()');assert(page().includes('沟通记录 &lt;原文&gt;'));
+run('trialNextStep()');
+assert.equal(run('trialState.step'),2);assert.equal(run('leadRecordDraft.items.length'),1);
+assert.equal(run('trialState.draft.schools[0].name'),'实验小学');
+assert.equal(run('trialState.draft.gender'),'女');
+const time=`${new Date().getFullYear()+1}-12-01T10:00`;
+run('trialToggleClass(a.classes[0].id,true)');
+run(`trialState.draft.classes[0].preferredTime='${time}'`);node('#trial-note').value='预约备注';
+run('trialPreviousStep()');
+assert(page().includes('value="试听表单测试"'));assert(page().includes('value="实验小学"'));
+assert(page().includes('id="trial-optional" open'));
+assert(page().includes('预约截图.png'));
+run('trialNextStep();trialNextStep()');
+assert(page().includes('沟通记录 &lt;原文&gt;'));assert(page().includes('预约截图.png'));
+run('trialSubmit()');
+assert.equal(run('trialState.requests[0].status'),'待排班');
+assert.equal(run('trialState.requests[0].information'),'沟通记录 <原文>');
+assert.equal(run('trialState.requests[0].note'),'预约备注');
+assert.equal(run('trialState.requests[0].source'),'转介绍');
+assert.equal(run('trialState.requests[0].files[0].url'),'blob:trial-1');
+assert.equal(run('a.students.length'),students);assert.equal(run('a.orders.length'),orders);
+assert(!revoked.includes('blob:trial-1'));assert.equal(run('leadRecordDraft'),null);
+run("state.page='trialManage';render();trialOpenReview(trialState.requests[0].id)");
+assert(page().includes('实验小学'));assert(page().includes('预约截图.png'));
+// Selecting and clearing a student does not modify the existing student's data.
+run("trialStart();a.students[0].grade='小二';a.students[0].school='已有学校';trialPickStudent(a.students[0].id)");
+assert(page().includes('value="张同学" readonly'));assert(page().includes('value="已有学校"'));
+run('trialClearStudent()');assert.equal(run('trialState.draft.studentId'),'');
+assert.equal(run('trialState.draft.name'),'');assert.equal(run('a.students[0].school'),'已有学校');
+assert(!page().match(/<details class="enrollment-optional"[^>]*\sopen[ >]/));
+run("leadAddRecordFiles([{name:'未提交.png',type:'image/png',size:50}],'image');nav('students')");
+assert.equal(run('leadRecordDraft'),null);assert(revoked.includes('blob:trial-2'));
+assert(!revoked.includes('blob:trial-1'));
+context.document.querySelector=query;context.document.querySelectorAll=queryAll;
+console.log('PASS: booking tabs, three required fields, optional order/collapse, existing-student picker and clear, draft retention, saved optional data/attachments, pending-only submission and attachment cleanup.');

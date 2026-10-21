@@ -1,0 +1,81 @@
+const assert=require('node:assert/strict');
+const {run,node,page,context,addPaymentProof}=require('./lead-registration.cjs');
+const revoked=[];context.URL={createObjectURL:()=> 'blob:enrollment',revokeObjectURL:url=>revoked.push(url)};
+run("permissionChangeIdentity('admin');a.selectedStudent=null;a.enrollStep=1;state.page='quickEnroll';render()");
+assert(page().includes('就读年级'));assert(!page().includes('报名学科'));assert(!page().includes('enroll-subject'));
+assert(!page().includes('enroll-campus'));assert(!page().includes('enroll-english'));
+assert.equal((page().match(/class="required"/g)||[]).length,3);
+assert(!page().match(/<details class="enrollment-optional"[^>]*\sopen[ >]/));
+const optional=page().slice(page().indexOf('<details class="enrollment-optional"'));
+assert(page().includes('展开更多'));assert(page().includes('收起更多'));
+assert(!page().includes('选填信息'));
+const ordered=['>公立学校</label>','>学生性别</label>','>咨询家长</label>','>来源渠道</label>','>信息记录</label>'];
+for(let i=1;i<ordered.length;i++)assert(optional.indexOf(ordered[i])>optional.indexOf(ordered[i-1]),ordered[i]);
+assert(optional.includes('上传图片'));assert(optional.includes('直接录音'));assert(optional.includes('上传语音'));
+const query=context.document.querySelector,queryAll=context.document.querySelectorAll;
+let schoolRows=[],gender='';
+context.document.querySelectorAll=selector=>selector==='.enrollment-school-row'?schoolRows:queryAll(selector);
+context.document.querySelector=selector=>selector==='input[name="enroll-gender"]:checked'?{value:gender}:query(selector);
+function fill(){
+  for(const [key,value] of Object.entries({name:'报名测试',phone:'13912345678',grade:'小三',guardian:'',source:'',note:''}))node('#enroll-'+key).value=value;
+}
+const students=run('a.students.length'),orders=run('a.orders.length');
+for(const missing of ['name','phone','grade']){
+  fill();node('#enroll-'+missing).value='';
+  run('enrollmentNext()');
+  assert.equal(run('a.enrollStep'),1,missing+' must be required');
+  assert.equal(run('a.students.length'),students);assert.equal(run('a.orders.length'),orders);
+}
+fill();node('#enroll-note').value='记录原文 <测试>';
+node('#enroll-guardian').value='爸爸';node('#enroll-source').value='转介绍';gender='女';
+schoolRows=[{querySelector:selector=>({value:selector.endsWith('-stage')?'小学':selector.endsWith('-name')?'实验小学':'2024'})}];
+node('.enrollment-optional').open=true;
+run("leadAddRecordFiles([{name:'报名截图.png',type:'image/png',size:50}],'image');enrollmentNext()");
+assert.equal(run('a.enrollStep'),2);
+assert.equal(run('a.enrollment.data.subjects.length'),0,'no subject needed to reach step 2');
+assert.equal(run('leadRecordDraft.items.length'),1);
+assert.equal(run('a.students.length'),students,'draft must not create a student');
+run('a.enrollStep=1;academicRender()');
+assert(page().includes('value="报名测试"'));assert(page().includes('value="13912345678"'));
+assert(page().includes('value="小三" selected'));assert(!page().includes('enroll-subject'));
+assert(page().includes('value="实验小学"'));
+assert(page().includes('记录原文 &lt;测试&gt;'));assert(page().includes('enrollment-optional" open'));
+run('enrollmentChooseStudent()');assert.equal(run('a.modal'),'selectStudent');
+run('a.modal=null;academicRender()');
+assert(page().includes('记录原文 &lt;测试&gt;'));
+run('enrollmentNext();enrollmentOpenClasses();enrollmentToggleClass(a.classes[0].id,true);enrollmentConfirmClasses();enrollmentClassesNext()');
+assert(page().includes('报名测试'));assert(page().includes('语文'));assert(!page().includes('新学生'));
+node('#pay-amount').value='1000';
+node('#pay-channel').value='微信';
+addPaymentProof();
+run('finishEnroll()');
+assert.equal(run('a.students.length'),students+1);assert.equal(run('a.orders.length'),orders+1);
+assert.equal(run('a.orders[0].student'),'报名测试');
+assert.equal(run('a.students[0].grade'),'小三');assert.equal(run('a.students[0].subject'),'语文');
+assert.equal(run('a.students[0].guardian'),'爸爸');assert.equal(run('a.students[0].source'),'转介绍');
+assert.equal(run('a.students[0].gender'),'女');assert.equal(run('a.students[0].schools[0].name'),'实验小学');
+assert.equal(run('a.students[0].history.at(-1)[2]'),'记录原文 <测试>');
+assert.equal(run('a.students[0].history.at(-1)[3].operator.account'),'wangmin');
+assert(!revoked.includes('blob:enrollment'));assert.equal(run('leadRecordDraft'),null);
+assert.equal(run('a.enrollment'),null);
+
+// Existing students hydrate without being duplicated, and clearing resets the form.
+run("state.page='enroll';a.selectedStudent=0;render()");
+assert(page().includes('value="报名测试"'));assert(page().includes('value="实验小学"'));
+assert(!page().includes('enroll-subject'));assert(!page().includes('enrollment-optional" open'));
+assert.equal(run('a.enrollment.data.note'),'','old records must not be resubmitted');
+run('enrollmentClearStudent()');
+assert.equal(run('a.selectedStudent'),null);assert.equal(run('a.enrollment.data.name'),'');
+assert.equal(run('a.enrollment.data.subjects.length'),0);
+fill();node('#enroll-note').value='';schoolRows=[];gender='';
+run('enrollmentNext()');assert.equal(run('a.enrollStep'),2,'optional fields may all be blank');
+run("nav('students')");
+assert.equal(run('leadRecordDraft'),null);assert.equal(run('a.enrollment'),null);assert.equal(run('a.enrollStep'),1);
+context.document.querySelector=query;context.document.querySelectorAll=queryAll;
+// Lead conversion retains basic details; enrollment subjects come from chosen classes.
+run("leadDetail(0,'myLeads');leadState.leads[0].grade='初二';leadState.leads[0].subject='数学、英语';leadState.leads[0].school='实验中学';leadToEnrollment()");
+assert.equal(run('state.page'),'enroll');
+assert.equal(run('a.enrollment.data.grade'),'初二');assert.equal(run('a.enrollment.data.subjects.length'),0);
+assert.equal(run('a.enrollment.data.schools[0].name'),'实验中学');
+assert.equal(run('a.enrollment.optionalOpen'),false);
+console.log('PASS: three required fields without subject selection; class-derived subjects; optional order/collapse; step retention; saved student/order/attachment data; existing student and lead hydration.');
