@@ -22,26 +22,72 @@ function renewalPeriodOptions(d=renewalPeriodDraft){
   if(d.scopeType==='grade')return leadConfiguredGradeNames().map(name=>[leadGradeKey(name),name]);
   return a.courses.filter(c=>String(c.year)===String(d.year)&&studentTermSeason(c.term)===d.term).map(c=>[renewalCourseId(c),c.name]);
 }
-function renewalPeriodCourseSelect(d){
-  const multiple=!d.all&&d.selected.length!==1;
-  return `<select class="select" id="renewal-course-filter" aria-label="适用课程" onchange="renewalPeriodSelectCourse(this.value)"><option value="" ${d.all?'selected':''}>全部课程</option>${multiple?`<option value="__custom__" selected disabled>${d.selected.length?'已选 '+d.selected.length+' 门课程':'请选择课程'}</option>`:''}${renewalPeriodOptions(d).map(([id,name])=>`<option value="${esc(id)}" ${!d.all&&d.selected.length===1&&d.selected[0]===id?'selected':''}>${esc(name)}</option>`).join('')}</select>`;
+function renewalCourseEmptyFilters(){return {course:'',grade:'',subject:'',campus:'',teacher:'',status:'',format:'',search:''}}
+let renewalCourseFilters=renewalCourseEmptyFilters();
+function renewalCourseRows(){
+  if(renewalPeriodDraft?.scopeType!=='course')return [];
+  const ids=new Set(renewalPeriodOptions().map(([id])=>id)),classes=classManagementRows();
+  return a.courses.filter(c=>ids.has(c.id)).map(course=>({id:course.id,course,classes:classes.filter(c=>c.course===course.name)}));
 }
-function renewalPeriodSelectCourse(id){
-  const d=renewalPeriodDraft;if(!d||d.scopeType!=='course')return;
-  if(id&&!renewalPeriodOptions(d).some(([key])=>key===id))return;
-  d.all=id==='';d.selected=id?[id]:[];render();
+function renewalCourseFiltered(){
+  const f=renewalCourseFilters,search=f.search.trim().toLowerCase();
+  return renewalCourseRows().filter(row=>{
+    const c=row.course;
+    if(f.course&&row.id!==f.course||f.grade&&enrollmentGradeKey(c.grade)!==f.grade||f.subject&&c.subject!==f.subject)return false;
+    if(!row.classes.length)return !f.campus&&!f.teacher&&!search&&(!f.status||f.status==='未建班')&&(!f.format||courseTeachingFormat(c)===f.format);
+    // 校区、老师、状态和班名必须在同一个关联班级上同时满足。
+    return row.classes.some(cls=>(!f.campus||cls.campus===f.campus)&&(!f.teacher||cls.teacher===f.teacher||cls.academicTeacher===f.teacher)&&(!f.status||cls.status===f.status)&&(!f.format||cls.format===f.format)&&(!search||String(cls.name||'').toLowerCase().includes(search)));
+  });
+}
+function renewalCourseFilterOptions(key){
+  const options=new Map();
+  for(const row of renewalCourseRows()){
+    if(key==='course')options.set(row.id,row.course.name);
+    else if(key==='grade'){if(row.course.grade)options.set(enrollmentGradeKey(row.course.grade),row.course.grade)}
+    else if(key==='subject'){if(row.course.subject)options.set(row.course.subject,row.course.subject)}
+    else if(!row.classes.length){if(key==='status')options.set('未建班','未建班');if(key==='format'){const format=courseTeachingFormat(row.course);options.set(format,format+'课')}}
+    else for(const cls of row.classes){
+      if(key==='teacher'){for(const name of [cls.teacher,cls.academicTeacher])if(name)options.set(name,name)}
+      else if(cls[key])options.set(cls[key],key==='format'?cls[key]+'课':cls[key]);
+    }
+  }
+  return [...options];
+}
+function renewalCourseSetFilter(key,value){
+  if(!Object.hasOwn(renewalCourseFilters,key))return;
+  renewalCourseFilters[key]=value;
+  $('#renewal-course-results').innerHTML=renewalCourseResults();
+}
+function renewalCourseResetFilters(){renewalCourseFilters=renewalCourseEmptyFilters();render()}
+function renewalCourseToggleVisible(checked){
+  const d=renewalPeriodDraft;if(d?.scopeType!=='course')return;
+  const ids=renewalPeriodOptions().map(([id])=>id),selected=new Set(d.all?ids:d.selected);
+  for(const row of renewalCourseFiltered())checked?selected.add(row.id):selected.delete(row.id);
+  d.all=ids.length>0&&ids.every(id=>selected.has(id));d.selected=d.all?[]:[...selected];render();
+}
+function renewalCourseResults(){
+  const d=renewalPeriodDraft,rows=renewalCourseFiltered(),ids=renewalPeriodOptions().map(([id])=>id);
+  const checked=id=>d.all||d.selected.includes(id),allVisible=rows.length>0&&rows.every(row=>checked(row.id));
+  const labels=(classes,key)=>[...new Set(classes.map(c=>c[key]).filter(Boolean))].join('、')||'—';
+  return aTable([`<input type="checkbox" aria-label="选择筛选结果全部课程" ${allVisible?'checked':''} ${rows.length?'':'disabled'} onchange="renewalCourseToggleVisible(this.checked)">`,'课程名称','年级','科目','校区','授课老师 / 教务','班级名称','状态','授课形式'],rows.map(row=>`<tr><td><input type="checkbox" aria-label="选择课程${esc(row.course.name)}" ${checked(row.id)?'checked':''} onchange="renewalPeriodToggle(${studentLifecycleArg(row.id)},this.checked)"></td><td>${esc(row.course.name)}</td><td>${esc(row.course.grade||'—')}</td><td>${esc(row.course.subject||'—')}</td><td>${esc(labels(row.classes,'campus'))}</td><td>${esc(labels(row.classes,'teacher'))} / ${esc(labels(row.classes,'academicTeacher'))}</td><td>${esc(labels(row.classes,'name'))}</td><td>${esc(row.classes.length?labels(row.classes,'status'):'未建班')}</td><td>${esc(row.classes.length?labels(row.classes,'format'):courseTeachingFormat(row.course))}</td></tr>`))+(rows.length?'':'<div class="empty">暂无符合条件的课程，请调整筛选条件或创建对应年份、学期的课程。</div>')+`<div class="data-bar">当前显示 ${rows.length} / ${ids.length} 门课程 · 已选 ${d.all?ids.length:d.selected.length} 门${d.all?'（全部课程）':''}</div>`;
+}
+function renewalPeriodScopePicker(d){
+  const all=`<label><input type="checkbox" aria-label="适用全部" ${d.all?'checked':''} onchange="renewalPeriodChange('all',this.checked);render()"> ${d.scopeType==='grade'?'全部年级':'全部课程'}</label>`;
+  if(d.scopeType==='grade')return all+`<div class="form-grid" style="margin-top:18px">${renewalPeriodOptions(d).map(([id,label])=>`<label><input type="checkbox" aria-label="适用${esc(label)}" ${d.all||d.selected.includes(id)?'checked':''} onchange="renewalPeriodToggle(${studentLifecycleArg(id)},this.checked)"> ${esc(label)}</label>`).join('')||'<p class="help">暂无可选年级，请先在教学配置中设置。</p>'}</div>`;
+  return `<div class="class-management-filters">${[['course','课程'],['grade','年级'],['subject','科目'],['campus','校区'],['teacher','老师'],['status','状态'],['format','授课形式']].map(([key,label])=>`<div class="field"><label for="renewal-course-${key}">${label}</label><select class="select" id="renewal-course-${key}" onchange="renewalCourseSetFilter('${key}',this.value)"><option value="">全部${label}</option>${renewalCourseFilterOptions(key).map(([value,text])=>`<option value="${esc(value)}" ${renewalCourseFilters[key]===value?'selected':''}>${esc(text)}</option>`).join('')}</select></div>`).join('')}<div class="field class-management-search"><label for="renewal-course-search">班级名称</label><input class="input" id="renewal-course-search" placeholder="请输入班级名称" value="${esc(renewalCourseFilters.search)}" oninput="renewalCourseSetFilter('search',this.value)"></div></div><div class="toolbar"><span class="help">筛选不改变已选课程；校区、老师、状态、授课形式及班级名称按关联班级筛选，所选课程下的全部班级适用。</span><button class="btn small" onclick="renewalCourseResetFilters()">重置筛选</button></div><div class="toolbar">${all}<span class="help">可勾选一门或多门课程；列表表头仅勾选当前筛选结果。</span></div><div id="renewal-course-results">${renewalCourseResults()}</div>`;
 }
 function renewalPeriodEdit(id){
   if(state.page!=='system'||!permissionCanVisit('system'))return;
   const row=renewalPeriodRows().find(r=>r.id===id);
   if(id&&!row)return;
+  renewalCourseFilters=renewalCourseEmptyFilters();
   renewalPeriodDraft=row?{...row,start:renewalPeriodDateTime(row.start),end:renewalPeriodDateTime(row.end,true),selected:[...row.selected]}:renewalPeriodDefault();render();
 }
 function renewalPeriodChange(key,value){
   if(!renewalPeriodDraft)return;
   renewalPeriodDraft[key]=value;
   if(key==='all'){renewalPeriodDraft.selected=[];return}
-  if(['scopeType','year','term'].includes(key)){renewalPeriodDraft.selected=[];renewalPeriodDraft.all=true;render()}
+  if(['scopeType','year','term'].includes(key)){renewalPeriodDraft.selected=[];renewalPeriodDraft.all=true;renewalCourseFilters=renewalCourseEmptyFilters();render()}
 }
 function renewalPeriodToggle(id,checked){
   const d=renewalPeriodDraft;if(!d)return;
@@ -93,8 +139,7 @@ function renewalPeriodScopeText(row){
 function renewalPeriodsPage(embedded=false){
   const d=renewalPeriodDraft;
   if(d){
-    const options=renewalPeriodOptions(d);
-    return (embedded?'':aHeading(d.id?'编辑续报期':'设置续报期','按学生当前就读的年份、学期设置，精确设置续报开始和结束时间'))+`<section class="${embedded?'pad':'card pad'}"><div class="form-grid">${aField('原班年份',`<input class="input" aria-label="原班年份" type="number" min="2000" max="2100" value="${esc(d.year)}" onchange="renewalPeriodChange('year',this.value)">`,true)}${aField('原班学期',`<select class="select" aria-label="原班学期" onchange="renewalPeriodChange('term',this.value)">${studentTermSeasons.map(term=>`<option ${d.term===term?'selected':''}>${term}</option>`).join('')}</select>`,true)}${aField('开始时间',`<input class="input" aria-label="续报开始时间" type="datetime-local" step="60" value="${esc(d.start)}" onchange="renewalPeriodChange('start',this.value)">`,true)}${aField('结束时间',`<input class="input" aria-label="续报结束时间" type="datetime-local" step="60" value="${esc(d.end)}" onchange="renewalPeriodChange('end',this.value)">`,true)}${aField('适用方式',`<select class="select" aria-label="续报适用方式" onchange="renewalPeriodChange('scopeType',this.value)"><option value="grade" ${d.scopeType==='grade'?'selected':''}>按年级</option><option value="course" ${d.scopeType==='course'?'selected':''}>按课程</option></select>`,true)}${d.scopeType==='course'?aField('课程',renewalPeriodCourseSelect(d),true):''}${aField('状态',`<label><input type="checkbox" ${d.active?'checked':''} onchange="renewalPeriodChange('active',this.checked)"> 启用</label>`)}</div><hr class="divider"><label><input type="checkbox" aria-label="适用全部" ${d.all?'checked':''} onchange="renewalPeriodChange('all',this.checked);render()"> ${d.scopeType==='grade'?'全部年级':'全部课程'}</label>${`<div class="form-grid" style="margin-top:18px">${options.map(([id,label])=>`<label><input type="checkbox" aria-label="适用${esc(label)}" ${d.all||d.selected.includes(id)?'checked':''} onchange="renewalPeriodToggle(${studentLifecycleArg(id)},this.checked)"> ${esc(label)}</label>`).join('')||'<p class="help">暂无可选项，请先在教学配置中设置年级，或创建对应年份、学期的课程。</p>'}</div>`}<p class="help">例如：2026秋季学生在此期间续报2027春季，配置在2026秋季下。选择全部时，后续新增的对应年级或课程也适用。优惠金额在报名时按已配置的优惠录入。</p><div class="form-actions"><button class="btn" onclick="renewalPeriodDraft=null;render()">取消</button><button class="btn primary" onclick="renewalPeriodSave()">保存续报期</button></div></section>`;
+    return (embedded?'':aHeading(d.id?'编辑续报期':'设置续报期','按学生当前就读的年份、学期设置，精确设置续报开始和结束时间'))+`<section class="${embedded?'pad':'card pad'}"><div class="form-grid">${aField('原班年份',`<input class="input" aria-label="原班年份" type="number" min="2000" max="2100" value="${esc(d.year)}" onchange="renewalPeriodChange('year',this.value)">`,true)}${aField('原班学期',`<select class="select" aria-label="原班学期" onchange="renewalPeriodChange('term',this.value)">${studentTermSeasons.map(term=>`<option ${d.term===term?'selected':''}>${term}</option>`).join('')}</select>`,true)}${aField('开始时间',`<input class="input" aria-label="续报开始时间" type="datetime-local" step="60" value="${esc(d.start)}" onchange="renewalPeriodChange('start',this.value)">`,true)}${aField('结束时间',`<input class="input" aria-label="续报结束时间" type="datetime-local" step="60" value="${esc(d.end)}" onchange="renewalPeriodChange('end',this.value)">`,true)}${aField('适用方式',`<select class="select" aria-label="续报适用方式" onchange="renewalPeriodChange('scopeType',this.value)"><option value="grade" ${d.scopeType==='grade'?'selected':''}>按年级</option><option value="course" ${d.scopeType==='course'?'selected':''}>按课程</option></select>`,true)}${aField('状态',`<label><input type="checkbox" ${d.active?'checked':''} onchange="renewalPeriodChange('active',this.checked)"> 启用</label>`)}</div><hr class="divider">${renewalPeriodScopePicker(d)}<p class="help">例如：2026秋季学生在此期间续报2027春季，配置在2026秋季下。选择全部时，后续新增的对应年级或课程也适用。优惠金额在报名时按已配置的优惠录入。</p><div class="form-actions"><button class="btn" onclick="renewalPeriodDraft=null;render()">取消</button><button class="btn primary" onclick="renewalPeriodSave()">保存续报期</button></div></section>`;
   }
   const rows=renewalPeriodRows().slice().sort((x,y)=>y.year-x.year||y.start.localeCompare(x.start));
   return (embedded?'':aHeading('续报配置','配置原班学期的续报日期；教师推动，教务协同'))+`<section class="${embedded?'pad':'card pad'}"><div class="toolbar"><span class="help">不会自动沿用上一年的日期，请按每个学期设置。</span><button class="btn primary" onclick="renewalPeriodEdit()">+ 设置续报期</button></div>${aTable(['原班年份 / 学期','续报时间','适用范围','状态','适用学生','操作'],rows.map(row=>`<tr><td>${esc(row.year)}年${esc(row.term)}</td><td>${esc(renewalPeriodTimeLabel(row.start))} 至 ${esc(renewalPeriodTimeLabel(row.end,true))}</td><td>${esc(renewalPeriodScopeText(row))}</td><td>${renewalPeriodStatus(row)}</td><td>${new Set(studentTermEnrollments().filter(r=>!['已退费','已退班','已转班','已取消'].includes(r.status)&&renewalPeriodMatches(row,r)).map(r=>r.studentId)).size} 人</td><td><button class="btn small" onclick="renewalPeriodEdit(${studentLifecycleArg(row.id)})">编辑</button></td></tr>`))}${rows.length?'':'<div class="empty">尚未设置续报期。设置后，学生购课记录将显示原班对应的续报时间。</div>'}</section>`;
