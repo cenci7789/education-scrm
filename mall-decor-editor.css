@@ -1,0 +1,54 @@
+/* Reference decoration styles, scoped exclusively to this page. */
+.mall-decor-page .decor-preview-tabs{display:flex;gap:8px;margin-bottom:16px}
+.mall-decor-page .decor-pick:disabled{opacity:1;cursor:default}
+.mall-decor-page .decor-pick:disabled:hover{outline:none}
+.mall-decor-page .decor-layout{display:grid;grid-template-columns:minmax(320px,1fr) minmax(270px,380px);gap:24px;align-items:start}
+.mall-decor-page .decor-stage{padding:24px 16px 32px;background:radial-gradient(ellipse at 50% 30%,#CBDDE7,#EAF2F6 70%);border:1px solid #e3e8ef;border-radius:16px;min-width:0}
+.mall-decor-page .decor-device-label{text-align:center;font-weight:600;color:#47566d;margin-bottom:20px;font-size:12px}
+.mall-decor-page .decor-device-label span{font-weight:400;color:#8693a4}
+.mall-decor-page .iphone17{width:300px;max-width:100%;aspect-ratio:393/804;margin:auto;padding:7px;background:#101114;border:2px solid #80838a;border-radius:46px;box-shadow:0 0 0 1px #202226,0 22px 36px -16px #1c293d66}
+.mall-decor-page .iphone-screen{height:100%;border-radius:37px;background:#EAF2F6;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.mall-decor-page .iphone-status{position:relative;display:flex;align-items:center;justify-content:space-between;height:48px;flex-shrink:0;padding:0 22px;font-size:10px;background:#fff;color:#151515}
+.mall-decor-page .dynamic-island{position:absolute;width:88px;height:25px;background:#070809;border-radius:20px;left:50%;top:9px;transform:translateX(-50%)}
+.mall-decor-page .dynamic-island:after{content:'';position:absolute;right:9px;top:9px;width:7px;height:7px;border-radius:50%;background:#111d2e}
+.mall-decor-page .iphone-scroll{overflow-y:auto;min-height:0;flex:1;scrollbar-width:none;padding:0 12px 12px}
+.mall-decor-page .iphone-scroll::-webkit-scrollbar{display:none}
+.mall-decor-page .decor-pick{display:block;width:100%;border:1px solid transparent;background:#fff;text-align:left;cursor:pointer;color:#243149;font:inherit}
+.mall-decor-page .decor-pick.chosen{outline:2px solid #426C84;outline-offset:-2px}
+.mall-decor-page .decor-pick:hover{outline:2px dashed #426C84;outline-offset:-2px}
+.mall-decor-page .store-brand{display:flex;align-items:center;gap:9px;padding:13px 6px;background:transparent;border-radius:8px}
+.mall-decor-page .store-monogram{height:32px;width:32px;border-radius:10px;display:grid;place-items:center;color:white;flex:none;font-weight:700}
+.mall-decor-page .store-brand strong{font-size:13px;display:block}
+.mall-decor-page .store-brand small{font-size:8px;display:block;color:#8691a1;margin-top:4px}
+.mall-decor-page .store-block{padding:14px;margin:10px 0;border-radius:13px;overflow:hidden}
+.mall-decor-page .store-block-copy>strong{display:block;font-size:14px;line-height:1.5}
+.mall-decor-page .store-block-copy>small{display:block;font-size:10px;color:#7d8b9b;line-height:1.7;margin:6px 0;white-space:pre-line}
+.mall-decor-page .store-hero{background:linear-gradient(135deg,#dbe9e5,#f1f3df);min-height:156px;padding:20px 16px}
+.mall-decor-page .store-hero .store-block-copy>strong{font-size:21px;line-height:1.45;color:#244b46;max-width:200px}
+.mall-decor-page .store-cta{display:inline-block;background:#244b46;color:#fff;border-radius:16px;padding:6px 12px;font-size:9px;margin-top:10px}
+.mall-decor-page .store-block>img{width:100%;max-height:180px;object-fit:cover;border-radius:7px;margin-bottom:10px}
+.mall-decor-page .store-course{display:flex;align-items:center;gap:9px;padding:12px 0;border-top:1px solid #edf1f5}
+.mall-decor-page .course-art{width:48px;height:50px;background:#EAF2F6;color:#6a73a5;border-radius:8px;display:grid;place-items:center;font-size:11px;flex:none}
+.mall-decor-page .store-course b{font-size:11px;line-height:1.5;display:block}
+.mall-decor-page .store-course small{font-size:9px;display:block;color:#94a0b1;margin-top:4px}
+.mall-decor-page .iphone-tabbar{display:flex;justify-content:space-around;background:#fff;padding:8px 12px 2px;border-top:1px solid #ecf0f4;font-size:18px;color:#7e8998}
+.mall-decor-page .iphone-tabbar span:first-child{color:#426C84}
+.mall-decor-page .iphone-tabbar small{display:block;font-size:8px;text-align:center}
+.mall-decor-page .iphone-home{width:95px;height:4px;border-radius:3px;background:#161719;margin:9px auto 7px;flex:none}
+.mall-decor-page .decor-inspector{padding:20px;min-width:0}
+.mall-decor-page .decor-section-tabs{display:flex;flex-wrap:wrap;gap:6px;padding-bottom:18px;border-bottom:1px solid #edf1f5;margin-bottom:18px}
+.mall-decor-page .decor-editor-head{display:grid;gap:7px;margin-bottom:20px}
+.mall-decor-page .decor-editor-head .muted{font-size:12px}
+.mall-decor-page .decor-field{display:grid;gap:8px;margin:16px 0;font-size:13px}
+.mall-decor-page .decor-field .input{width:100%;min-width:0}
+.mall-decor-page .decor-field textarea{resize:vertical;line-height:1.6}
+.mall-decor-page .decor-field input[type=file]{width:100%;font-size:12px}
+.mall-decor-page .decor-module{display:flex;align-items:center;gap:8px;line-height:1.6}
+.mall-decor-page .decor-module input{accent-color:#426C84}
+.mall-decor-page .decor-reorder{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+@media(max-width:1050px){.mall-decor-page .decor-layout{grid-template-columns:minmax(0,1fr)}
+.mall-decor-page .decor-inspector{width:100%}
+.mall-decor-page .decor-stage{padding:16px}
+.mall-decor-page .iphone17{width:300px}
+}
+

@@ -1,5 +1,5 @@
 // 用户已明确的教学、财务中心导航。待业务参考补充后再细化页面。
-const structurePages={learningActive:'在读学生',learningHistory:'历史学生',learningData:'数据管理',financeRefunds:'退转记录',financeArrears:'欠费记录',financeConsumption:'课消记录',financeReceipts:'收款设置'};
+const structurePages={learningActive:'在读学生',learningHistory:'历史学生',learningData:'课表',financeRefunds:'退转记录',financeArrears:'欠费记录',financeConsumption:'课消记录',financeReceipts:'收款设置'};
 const structurePreviousRender=render,structurePreviousAcademicRender=academicRender;
 render=function(){if(structurePages[state.page])structureRender();else structurePreviousRender()};
 academicRender=function(){

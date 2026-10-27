@@ -1,0 +1,21 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+const {chromium}=require(path.join(process.env.USERPROFILE,'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright'));
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+ const page=await browser.newPage({viewport:{width:1440,height:1050}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(require('node:url').pathToFileURL(path.resolve(__dirname,'../index.html')).href);await page.waitForFunction(()=>businessStorage.ready&&!businessStorage.busy);
+ const teaching=async()=>{await page.locator('[data-page="teaching"]').click();await page.getByRole('button',{name:'年级配置',exact:true}).click()};
+ const register=async()=>{await page.locator('[data-page="quickRegister"]').click();await page.locator('button[onclick="leadOpenForm()"]:visible').first().click()};
+ const options=()=>page.locator('#lead-grade option:not([disabled])').evaluateAll(els=>els.map(e=>e.value).filter(Boolean));
+ await teaching();await page.getByRole('button',{name:'新增年级',exact:true}).click();await page.locator('#teaching-name').fill('学前班');await page.locator('#teaching-display').fill('商城启蒙');await page.getByRole('dialog').getByRole('button',{name:'保存',exact:true}).click();
+ await register();assert((await options()).includes('学前班'));assert(!(await options()).includes('商城启蒙'));assert((await options()).includes('1年级'));assert(!(await options()).includes('小一'));
+ const schoolYear=new Date().getFullYear()-(new Date().getMonth()<8?1:0);
+ await page.locator('.lead-school-year').selectOption(String(schoolYear));assert.equal(await page.locator('#lead-grade').inputValue(),'1年级');
+ await page.locator('.lead-school-year').selectOption(String(schoolYear-8));assert.equal(await page.locator('#lead-grade').inputValue(),'');assert.match(await page.locator('#lead-school-grade-result').innerText(),/未匹配/);
+ await page.locator('.lead-school-year').selectOption('');await page.locator('#lead-grade').selectOption('学前班');await page.locator('#lead-name').fill('配置年级测试');await page.locator('#lead-phone').fill('13845670001');await page.getByRole('button',{name:'保存登记',exact:true}).click();assert.equal(await page.evaluate(()=>leadState.leads[0].grade),'学前班');
+ await teaching();await page.locator('tr').filter({has:page.getByRole('cell',{name:'学前班',exact:true})}).getByRole('button',{name:'停用',exact:true}).click();
+ await register();assert(!(await options()).includes('学前班'));
+ await page.evaluate(()=>{leadDetail(0,'quickRegister');leadOpenForm('edit')});assert.equal(await page.locator('#lead-grade').inputValue(),'学前班');assert.equal(await page.locator('#lead-grade option:checked').isDisabled(),true);await page.getByRole('button',{name:'保存修改',exact:true}).click();assert.equal(await page.evaluate(()=>leadState.leads[0].grade),'学前班');
+ await teaching();await page.locator('tr').filter({has:page.getByRole('cell',{name:'学前班',exact:true})}).getByRole('button',{name:'启用',exact:true}).click();await register();assert((await options()).includes('学前班'));
+ await page.evaluate(()=>businessSave());await page.waitForFunction(()=>!businessStorage.busy);await page.reload();await page.waitForFunction(()=>businessStorage.ready&&!businessStorage.busy);await register();assert((await options()).includes('学前班'));assert.equal(await page.evaluate(()=>leadState.leads[0].grade),'学前班');
+ assert.deepEqual(errors,[]);console.log('PASS browser: add/disable/enable grade through configuration UI, registration options, school-year mapping, unconfigured progression, save/edit/history and reload persistence.');
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

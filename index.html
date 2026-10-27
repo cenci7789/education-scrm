@@ -6,7 +6,10 @@
   <title>教培 CRM 与教务系统 · 第一批原型</title>
   <style>
     :root{font-family:Inter,"Microsoft YaHei","PingFang SC",sans-serif;color:#243149;background:#f4f7fb;font-size:14px}*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.45}.app{display:flex;min-height:100vh}.sidebar{width:238px;background:#172945;color:#c2d0e4;flex-shrink:0;padding:24px 12px}.brand{font-size:18px;font-weight:700;color:white;padding:0 14px 26px;letter-spacing:.5px}.brand small{display:block;color:#7f98b9;font-size:11px;font-weight:500;margin-top:5px;letter-spacing:1px}.menu-title{font-size:11px;color:#7490b2;margin:18px 12px 8px}.menu-item{display:block;width:100%;border:0;background:transparent;color:#b5c5da;text-align:left;padding:11px 14px;border-radius:8px;margin:2px 0}.menu-item:hover{background:#24405f}.menu-item.active{background:#315deb;color:white;font-weight:600}.menu-item.muted{opacity:.6}.main{min-width:0;flex:1}.topbar{height:64px;background:#fff;border-bottom:1px solid #e7edf5;display:flex;align-items:center;justify-content:space-between;padding:0 34px}.topbar .crumb{font-size:13px;color:#7b8ba2}.topbar .user{display:flex;align-items:center;gap:10px;color:#63738a}.avatar{width:30px;height:30px;border-radius:50%;background:#dfe8ff;color:#315deb;display:grid;place-items:center;font-weight:700}.content{padding:28px 34px 60px;max-width:1600px;margin:auto}.heading{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}.heading h1{font-size:24px;margin:0 0 7px}.subtitle{color:#8090a6;margin:0}.card{background:white;border:1px solid #e7edf5;border-radius:12px;box-shadow:0 3px 15px #1c385006}.pad{padding:24px}.tabs{display:flex;gap:32px;border-bottom:1px solid #e8edf4;padding:0 24px}.tab{border:0;background:transparent;color:#7b8ba2;padding:19px 2px 16px;border-bottom:3px solid transparent;font-weight:600}.tab.active{color:#315deb;border-color:#315deb}.tab:disabled{color:#b9c3cf}.section-title{font-size:17px;font-weight:700;margin:0 0 20px}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:20px}.toolbar-left,.toolbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.btn{border:1px solid #d9e2ef;background:#fff;color:#315deb;border-radius:7px;padding:9px 17px;font-weight:600;min-height:38px}.btn:hover{background:#f6f8ff}.btn.primary{background:#315deb;border-color:#315deb;color:#fff}.btn.primary:hover{background:#244ed5}.btn.danger{color:#d84b56}.btn.small{padding:6px 10px;min-height:30px}.count{color:#8090a6}.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:760px}.table th{text-align:left;color:#8796aa;background:#f8fafe;font-weight:600;padding:16px;border-bottom:1px solid #e7edf5}.table td{padding:17px 16px;border-bottom:1px solid #edf1f6;vertical-align:middle}.table tr:last-child td{border-bottom:0}.table a,.link{color:#315deb;text-decoration:none;cursor:pointer}.badge{display:inline-block;border-radius:99px;padding:4px 10px;background:#e9f8f0;color:#16915c;font-size:12px}.badge.off{background:#f0f2f5;color:#8792a1}.actions{display:flex;gap:12px;white-space:nowrap}.filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}.input,.select,.textarea{width:100%;border:1px solid #dce4ef;background:#fff;border-radius:7px;min-height:40px;padding:9px 12px;color:#27364b;outline:none}.input:focus,.select:focus,.textarea:focus{border-color:#315deb;box-shadow:0 0 0 3px #315deb19}.textarea{min-height:85px;resize:vertical}.filters .input{width:250px}.filters .select{width:155px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 28px;max-width:900px}.field label{display:block;color:#56677f;margin-bottom:8px}.required:before{content:"* ";color:#ef6972}.help{font-size:12px;color:#96a3b4;margin-top:7px}.full{grid-column:1/-1}.inline{display:flex;gap:10px}.inline>*{flex:1}.form-actions{display:flex;gap:10px;margin-top:26px}.divider{border:0;border-top:1px solid #edf1f6;margin:28px 0}.subcard{border:1px solid #e7edf5;border-radius:9px;padding:20px;margin-top:20px}.subcard-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.subcard h3{margin:0;font-size:15px}.muted{color:#8b9aac}.empty{padding:38px;text-align:center;color:#9aa8b8;background:#fbfcfe;border:1px dashed #dce4ef;border-radius:8px}.config-table{width:100%;border-collapse:collapse;max-width:920px}.config-table th,.config-table td{padding:14px 12px;text-align:left;border-bottom:1px solid #edf1f6}.config-table th{background:#f8fafe;color:#8190a3}.switch{position:relative;display:inline-block;width:40px;height:23px;vertical-align:middle}.switch input{opacity:0;width:0;height:0}.switch span{position:absolute;inset:0;background:#bbc4d1;border-radius:99px;transition:.2s}.switch span:before{content:"";position:absolute;left:3px;top:3px;width:17px;height:17px;border-radius:50%;background:white;transition:.2s}.switch input:checked+span{background:#315deb}.switch input:checked+span:before{transform:translateX(17px)}.notice{background:#eff5ff;border:1px solid #d9e8ff;color:#52729e;padding:12px 14px;border-radius:7px;margin:0 0 20px}.pill{display:inline-block;color:#7290bd;background:#f1f5fc;padding:6px 10px;border-radius:6px;margin:4px 6px 4px 0}.checkrow{display:flex;flex-wrap:wrap;gap:14px 22px;margin:12px 0 24px}.checkrow label{color:#5a6b82;white-space:nowrap}.checkrow input{accent-color:#315deb}.permission-block{border-top:1px solid #edf1f6;padding:20px 0}.permission-block:first-of-type{border-top:0}.permission-block h3{margin:0;font-size:15px}.toast{position:fixed;right:28px;bottom:26px;background:#20324b;color:white;padding:12px 18px;border-radius:8px;box-shadow:0 8px 22px #10233d30;display:none}.toast.show{display:block}@media(max-width:900px){.sidebar{width:190px}.content{padding:20px}.form-grid{grid-template-columns:1fr}.topbar{padding:0 20px}}@media(max-width:680px){.app{display:block}.sidebar{width:100%;height:auto;padding:10px;display:flex;overflow:auto;align-items:center}.brand{font-size:14px;padding:8px;white-space:nowrap}.brand small,.menu-title{display:none}.menu-item{width:auto;white-space:nowrap}.topbar{display:none}.content{padding:18px}.tabs{gap:18px;overflow:auto;white-space:nowrap}}
-  </style>
+  .profile-timeline{border-left:2px solid #dbe5f7;margin:20px 0 0 8px;padding-left:24px}.profile-event{position:relative;padding:0 0 26px;margin-bottom:20px;border-bottom:1px solid #e8edf5}.profile-event:before{content:'';position:absolute;left:-31px;top:5px;width:10px;height:10px;border-radius:50%;background:#3459f5;border:2px solid #fff}.profile-event time{color:#8093ad;font-size:12px}.profile-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8}.profile-learning-card{padding:20px;border:1px solid #e1e8f4;border-radius:8px;margin-top:16px}.profile-score{font-size:22px;color:#3155ef}.profile-score .muted{font-size:14px}.profile-school-row{display:grid;grid-template-columns:1fr 2fr 1fr auto;gap:8px;margin-bottom:8px}@media(max-width:700px){.profile-school-row{grid-template-columns:1fr 1fr}.profile-event .toolbar{align-items:flex-start;gap:8px;flex-direction:column}}
+.term-default-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:30px;margin-bottom:5px}.term-default-heading label{margin:0!important;flex-shrink:0}.term-default-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}.term-default-button{font-size:12px;padding:2px 7px;min-height:24px}.term-default-note{margin:0;font-size:11px}.student-management-filters,.class-management-filters{align-items:end}
+[id^="archive-"][hidden]{display:none!important}
+</style>
   <link rel="stylesheet" href="academic.css">
   <link rel="stylesheet" href="navigation.css">
   <link rel="stylesheet" href="leads.css">
@@ -24,8 +27,6 @@
     <button class="nav-toggle nav-level-1" type="button" data-nav-toggle="shortcuts" aria-expanded="true" aria-controls="nav-shortcuts">快捷入口 <span class="nav-chevron">⌄</span></button>
     <div class="nav-children" id="nav-shortcuts">
       <button class="menu-item nav-level-2" data-page="quickRegister">线索登记</button>
-      <button class="menu-item nav-level-2" data-page="quickTrial">预约试听</button>
-      <button class="menu-item nav-level-2" data-page="quickEnroll">报名</button>
     </div>
     <button class="nav-toggle nav-level-1" type="button" data-nav-toggle="leads" aria-expanded="true" aria-controls="nav-leads">线索 <span class="nav-chevron">⌄</span></button>
     <div class="nav-children" id="nav-leads">
@@ -58,21 +59,24 @@
     <div class="nav-children" id="nav-learning">
       <button class="menu-item nav-level-2" data-page="learningActive">在读学生</button>
       <button class="menu-item nav-level-2" data-page="learningHistory">历史学生</button>
-      <button class="menu-item nav-level-2" data-page="learningData">数据管理</button>
+      <button class="menu-item nav-level-2" data-page="learningData">课表</button>
     </div>
     <button class="nav-toggle nav-level-1" type="button" data-nav-toggle="mall" aria-expanded="true" aria-controls="nav-mall">商城工具 <span class="nav-chevron">⌄</span></button>
     <div class="nav-children" id="nav-mall">
       <button class="nav-toggle nav-level-2" type="button" data-nav-toggle="courseMall" aria-expanded="true" aria-controls="nav-course-mall">课程商城 <span class="nav-chevron">⌄</span></button>
       <div class="nav-children" id="nav-course-mall">
-        <button class="menu-item nav-level-3" data-page="mallDecor">商城装修</button>
-        <button class="menu-item nav-level-3" data-page="mallShelf">课程上架</button>
+        <button class="menu-item nav-level-3" data-page="mallDecor">商城装修 <span class="nav-phase-badge">二期</span></button>
+        <button class="menu-item nav-level-3" data-page="mallShelf">课程上架 <span class="nav-phase-badge">二期</span></button>
       </div>
       <button class="nav-toggle nav-level-2" type="button" data-nav-toggle="marketing" aria-expanded="true" aria-controls="nav-marketing">营销工具 <span class="nav-chevron">⌄</span></button>
       <div class="nav-children" id="nav-marketing">
-        <button class="menu-item nav-level-3" data-page="mallGroup">拼团</button>
-        <button class="menu-item nav-level-3" data-page="mallJoint">联报</button>
-        <button class="menu-item nav-level-3" data-page="mallCoupon">优惠券</button>
-        <button class="menu-item nav-level-3" data-page="marketingForms">表单</button>
+        <button class="menu-item nav-level-3" data-page="mallGroup">拼团 <span class="nav-phase-badge">二期</span></button>
+        <button class="menu-item nav-level-3" data-page="mallJoint">联报 <span class="nav-phase-badge">二期</span></button>
+        <button class="menu-item nav-level-3" data-page="mallCoupon">优惠券 <span class="nav-phase-badge">二期</span></button>
+        <button class="menu-item nav-level-3" data-page="mallInvite">邀请有礼 <span class="nav-phase-badge">二期</span></button>
+        <button class="menu-item nav-level-3" data-page="wechatLive">微信活码 <span class="nav-phase-badge">二期</span></button>
+        <button class="menu-item nav-level-3" data-page="marketingForms">表单 <span class="nav-phase-badge">二期</span></button>
+        <button class="menu-item nav-level-3 nav-coming-soon" type="button" disabled title="活动课将在二期开发">活动课 <span class="nav-phase-badge">二期</span></button>
       </div>
     </div>
     <button class="nav-toggle nav-level-1" type="button" data-nav-toggle="finance" aria-expanded="true" aria-controls="nav-finance">财务中心 <span class="nav-chevron">⌄</span></button>
@@ -101,7 +105,7 @@
 </div>
 <div class="toast" id="toast"></div>
 <script>
-const state={page:'system',mode:'list',tab:'机构信息',editing:false,campusEdit:null,staffEdit:null,campuses:[{name:'城中校区',rooms:8,seats:180,active:true,address:'江苏省 苏州市 姑苏区 人民路18号',merchant:'苏州思跃教育科技有限公司'},{name:'园区校区',rooms:5,seats:120,active:true,address:'江苏省 苏州市 工业园区 星湖街66号',merchant:'苏州思跃教育科技有限公司'},{name:'新区校区',rooms:3,seats:75,active:false,address:'江苏省 苏州市 虎丘区 长江路28号',merchant:'未绑定'}],staff:[{name:'袁老师',phone:'130****3533',gender:'男',campus:'城中校区',roles:'前台、教务、面授主讲',active:true},{name:'陈老师',phone:'138****6281',gender:'女',campus:'园区校区',roles:'校区主管、招生',active:true}],config:{学科:[['语文',false,'语文'],['数学',true,'数学'],['英语',false,'英语'],['物理',true,'物理'],['化学',false,'化学'],['生物',false,'生物']],学期:[['春季',true,'春季'],['暑期',true,'暑期'],['秋季',true,'秋季'],['寒假',true,'寒假'],['全季',true,'全季']],年级:[['1年级',false,'1年级'],['2年级',false,'2年级'],['3年级',true,'3年级'],['4年级',true,'4年级'],['5年级',true,'5年级'],['6年级',true,'6年级']],班型:[['创新班',true,'大伟长班'],['尖子班',true,'校内拔高'],['提高班',true,'刷题班'],['X班',true,'S+班'],['Y班',true,'S班'],['Z班',true,'培优班']]}};
+const state={page:'quickRegister',mode:'list',tab:'机构信息',editing:false,campusEdit:null,staffEdit:null,campuses:[{name:'城中校区',rooms:8,seats:180,active:true,address:'江苏省 苏州市 姑苏区 人民路18号',merchant:'苏州思跃教育科技有限公司'},{name:'园区校区',rooms:5,seats:120,active:true,address:'江苏省 苏州市 工业园区 星湖街66号',merchant:'苏州思跃教育科技有限公司'},{name:'新区校区',rooms:3,seats:75,active:false,address:'江苏省 苏州市 虎丘区 长江路28号',merchant:'未绑定'}],staff:[{name:'袁老师',phone:'130****3533',gender:'男',campus:'城中校区',roles:'前台、教务、面授主讲',active:true},{name:'陈老师',phone:'138****6281',gender:'女',campus:'园区校区',roles:'校区主管、招生',active:true}],config:{学科:[['语文',false,'语文'],['数学',true,'数学'],['英语',false,'英语'],['物理',true,'物理'],['化学',false,'化学'],['生物',false,'生物']],学期:[['春季',true,'春季'],['暑期',true,'暑期'],['秋季',true,'秋季'],['寒假',true,'寒假'],['全季',true,'全季']],年级:[['1年级',false,'1年级'],['2年级',false,'2年级'],['3年级',true,'3年级'],['4年级',true,'4年级'],['5年级',true,'5年级'],['6年级',true,'6年级']],班型:[['创新班',true,'大伟长班'],['尖子班',true,'校内拔高'],['提高班',true,'刷题班'],['X班',true,'S+班'],['Y班',true,'S班'],['Z班',true,'培优班']]}};
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function heading(title,sub){return `<div class="heading"><div><h1>${title}</h1><p class="subtitle">${sub}</p></div></div>`}
 function toast(msg){const e=$('#toast');e.textContent=msg;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600)}
@@ -207,7 +211,75 @@ document.querySelectorAll('.menu-item').forEach(e=>e.addEventListener('click',()
 <script src="class-setup.js"></script>
 <script src="class-schedule.js"></script>
 <script src="class-details.js"></script>
+<script src="student-terms.js"></script>
+<script src="class-filters.js"></script>
+<script src="student-profile.js"></script>
+<script src="teaching-default-term.js"></script>
+<script src="student-exams.js"></script>
+<script src="attendance-filters.js"></script>
+<script src="makeup-picker.js"></script>
+<script src="makeup-resolution.js"></script>
+<script src="trial-management.js"></script>
+<link rel="stylesheet" href="schedule-calendar.css">
+<script src="schedule-calendar.js"></script>
+<link rel="stylesheet" href="temp-move-search.css">
+<script src="temp-move-search.js"></script>
+<script src="transfer-search.js"></script>
+<script src="withdraw-refund.js"></script>
+<link rel="stylesheet" href="refund-workflow.css">
+<script src="refund-workflow.js"></script>
+<script src="refund-call-flow.js"></script>
+<link rel="stylesheet" href="supplement-payment.css">
+<script src="supplement-payment.js"></script>
+<link rel="stylesheet" href="teacher-portal.css">
+<script src="teacher-portal.js"></script>
+<link rel="stylesheet" href="mall-decor-editor.css">
+<script src="mall-decor-editor.js"></script>
+<link rel="stylesheet" href="mall-shelf-classes.css">
+<script src="mall-shelf-classes.js"></script>
+<link rel="stylesheet" href="mall-group-form.css">
+<script src="mall-group-form.js"></script>
+<link rel="stylesheet" href="mall-group-share.css">
+<script src="qrcode-vendor.js"></script>
+<script src="group-share-codec.js"></script>
+<script src="mall-group-share.js"></script>
+<link rel="stylesheet" href="mall-joint-form.css">
+<script src="mall-joint-form.js"></script>
+<link rel="stylesheet" href="mall-joint-share.css">
+<script src="joint-share-codec.js"></script>
+<script src="mall-joint-share.js"></script>
+<link rel="stylesheet" href="mall-coupon-form.css">
+<script src="mall-coupon-form.js"></script>
+<script src="mall-invitation.js"></script>
+<link rel="stylesheet" href="marketing-form-workbench.css">
+<script src="marketing-form-workbench.js"></script>
+<script src="marketing-form-settings.js"></script>
+<script src="marketing-form-responses.js"></script>
+<link rel="stylesheet" href="wechat-live.css">
+<script src="wechat-live-runtime.js"></script>
+<script src="wechat-live.js"></script>
+<script src="finance-data.js"></script>
+<script src="config-integrity.js"></script>
+<script src="transfer-settlement.js"></script>
+<script src="temp-move-records.js"></script>
+<script src="catalog-integrity.js"></script>
+<script src="demo-ledger.js"></script>
+<script src="batch-import.js"></script>
+<script src="batch-import-extended.js"></script>
+<script src="coupon-wallet.js"></script>
+<script src="student-lifecycle.js"></script>
+<script src="renewal-periods.js"></script>
+<script src="clean-start.js"></script>
+<script src="business-storage.js"></script>
 <style>
+.class-management-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 16px}.class-management-filters .field{min-width:0}
+.class-management-search{grid-column:span 2}.class-management-filter-actions{margin-top:16px}.class-management-filter-actions .help{margin:0}
+@media(max-width:1100px){.class-management-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.class-management-filters{grid-template-columns:1fr}.class-management-search{grid-column:auto}}
+.student-management-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 16px}.student-management-filters .field{min-width:0}
+.student-management-reset{margin-top:16px}.student-management-reset .help{margin:0}
+@media(max-width:1100px){.student-management-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.student-management-filters{grid-template-columns:1fr}}
 .class-detail-heading h1{font-size:22px;margin:0}.class-detail-layout{display:grid;gap:18px}
 .class-detail-layout .section-title{font-size:16px;border-left:3px solid #315deb;padding-left:10px}
 .class-detail-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px 28px;margin:0}

@@ -42,18 +42,22 @@ function mfCopyLink(){const url=mfLink(mfState.draft.id);if(navigator.clipboard?
 function mfOpen(id){mfState.activeId=id;mfState.previewDone=false;mfNav('marketingFormPreview')}
 function mfPreviewPage(){const f=mfState.forms.find(x=>x.id===mfState.activeId)||mfState.draft;if(!f)return heading('表单预览','未找到表单');const resource=f.settings?.download;return heading('表单预览','查看家长端填写效果')+`<div class="mf-preview-page">${mfState.previewDone?`<div class="card pad"><h2>提交成功</h2><p class="muted">您的信息已提交，感谢填写。</p>${resource?.enabled&&resource.dataUrl?`<div class="mf-success-resource"><div><strong>电子资料已可领取</strong><p class="muted">${esc(resource.fileName)}</p></div><button class="btn primary" onclick="mfDownloadResource()">下载资料</button></div>`:''}<button class="btn" onclick="mfState.previewDone=false;marketingFormRender()">返回表单</button></div>`:mfPhone(f)}<div class="mf-form-footer"><button class="btn" onclick="mfNav('marketingForms')">返回列表</button></div></div>`}
 function mfSubmitPreview(){const f=mfState.forms.find(x=>x.id===mfState.activeId)||mfState.draft;if(f.status!=='已发布'){toast('请先发布表单');return}const answers={};for(const field of f.fields){let value='';if(['single','gender'].includes(field.type))value=document.querySelector(`input[name="answer-${field.id}"]:checked`)?.value||'';else if(field.type==='multiple')value=[...document.querySelectorAll(`input[name="answer-${field.id}"]:checked`)].map(e=>e.value).join('、');else value=document.querySelector(`[data-answer="${field.id}"]`)?.value||'';if(field.required&&!value){toast('请填写'+field.title);return}if(field.type==='phone'&&value&&!/^1\d{10}$/.test(value)){toast('请填写正确的11位手机号');return}answers[field.title]=value}f.submissions.push({at:new Date().toLocaleString('zh-CN'),answers});mfCaptureLead(f,answers);mfPersist();mfState.previewDone=true;marketingFormRender();toast('演示填写已提交')}
-function mfCaptureLead(form,answers){
+function mfCaptureLead(form,answers,submissionId='',createdAt=''){
   if(!form.settings?.download?.enabled)return;
   const nameField=form.fields.find(f=>f.type==='name'),phoneField=form.fields.find(f=>f.type==='phone'),name=answers[nameField?.title],phone=answers[phoneField?.title];
   if(!name||!phone)return;
-  const existing=leadState.leads.find(l=>l.contactPhone===phone);
-  if(existing){existing.history.push(leadSystemHistoryEntry('资料领取',`再次填写「${form.title}」并领取资料。`));return}
-  const lead={name,phone:phone.slice(0,3)+'****'+phone.slice(-4),contactPhone:phone,guardian:'家长',grade:'未填',subject:'待定',stage:'新线索',intent:'',next:'未约定',source:'资料领取表单',campus:'待定',owner:'未分配',status:'new',gender:'未填',school:'',note:`填写「${form.title}」领取电子资料。`,history:[]};
+  const sourceKey=form.id+':'+(submissionId||JSON.stringify(answers));
+  if(leadState.leads.some(l=>l.formSubmissions?.some(s=>s.key===sourceKey)))return;
+  const existing=leadState.leads.find(l=>l.name===name&&(l.contactPhone||l.phone)===phone),at=createdAt||new Date().toISOString();
+  const source={key:sourceKey,formId:form.id,submissionId,createdAt:at};
+  if(existing){(existing.formSubmissions??=[]).push(source);existing.leadId??='FORM-LEAD-'+Date.now()+'-'+Math.random().toString(36).slice(2);existing.history??=[];existing.history.push(leadSystemHistoryEntry('资料领取',`再次填写「${form.title}」并领取资料。`));return}
+  const lead={leadId:'FORM-LEAD-'+Date.now()+'-'+Math.random().toString(36).slice(2),createdAt:at,formSubmissions:[source],name,phone,contactPhone:phone,guardian:'家长',grade:'未填',subject:'待定',stage:'新线索',intent:'',next:'未约定',source:'资料领取表单',campus:'待定',owner:'未分配',status:'new',gender:'未填',school:'',note:`填写「${form.title}」领取电子资料。`,history:[]};
   lead.history.push(leadSystemHistoryEntry('建档',leadRegistrationBody(lead,'统一分配')));
   leadState.leads.unshift(lead);
 }
 function mfShowSubmissions(id){mfState.activeId=id;mfNav('marketingFormSubmissions')}
 function mfSubmissionsPage(){const f=mfState.forms.find(x=>x.id===mfState.activeId);if(!f)return heading('填写记录','未找到表单');return heading('填写记录',f.title)+`<div class="card pad"><div class="toolbar"><span class="count">共 ${f.submissions.length} 条</span><button class="btn" onclick="mfNav('marketingForms')">返回表单列表</button></div>${aTable(['提交时间',...f.fields.filter(x=>!['divider','description','image'].includes(x.type)).map(x=>esc(x.title))],f.submissions.map(s=>`<tr><td>${esc(s.at)}</td>${f.fields.filter(x=>!['divider','description','image'].includes(x.type)).map(x=>`<td>${esc(s.answers[x.title]||'—')}</td>`).join('')}</tr>`))}</div>`}
 const mfSharedForm=new URL(location.href).searchParams.get('form');
-mfState.forms.filter(f=>f.settings?.download?.enabled).forEach(f=>f.submissions.forEach(s=>mfCaptureLead(f,s.answers)));
+function mfReconcileLeads(){mfState.forms.filter(f=>f.settings?.download?.enabled).forEach(f=>f.submissions.forEach((s,i)=>mfCaptureLead(f,s.answers,s.id||'legacy-'+i,s.createdAt)))}
+mfReconcileLeads();
 if(mfSharedForm&&mfState.forms.some(f=>f.id===mfSharedForm)){mfState.activeId=mfSharedForm;state.page='marketingFormPreview';render()}

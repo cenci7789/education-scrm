@@ -1,17 +1,17 @@
 // 商城工具原型：课程上架、网校装修与三种招生营销活动。
-const mallPages={mallDecor:'商城装修',mallShelf:'课程上架',mallGroup:'拼团',mallJoint:'联报',mallCoupon:'优惠券',mallForm:'新建活动'};
+const mallPages={mallDecor:'商城装修',mallShelf:'课程上架',mallGroup:'拼团',mallJoint:'联报',mallCoupon:'优惠券',mallInvite:'邀请有礼',mallForm:'新建活动'};
 state.mall={shelfTab:'已上架课程',shelved:[0,1],hiddenShelved:[],selected:[],decorTab:'页面装修',decor:{title:'思跃培优网校',color:'#3979ed',modules:['轮播图','课程展示','机构介绍']},published:false,editingDecor:false,activities:{group:[{name:'秋季数学两人成团',start:'2026-09-20',end:'2026-10-20',status:'进行中',products:['四年级数学秋季班'],limit:'2人团',discount:'¥100'}],joint:[{name:'秋季数学英语联报',start:'2026-09-20',end:'2026-10-20',status:'进行中',products:['四年级数学秋季班','二年级语文春季班'],discount:'满2门减¥200'}],coupon:[{name:'新学期满减券',status:'进行中',kind:'满减券',offer:'满1000减100',total:100,claimed:4,used:1,start:'2026-09-17',end:'2026-09-24'}]},formType:'group',formStep:1,draft:{},picked:[],picker:false};
 const mallState=state.mall,mallPreviousRender=render;
 render=function(){if(mallPages[state.page])mallRender();else mallPreviousRender()};
 function mallNav(page){state.page=page;mallState.picker=false;render()}
 function mallRender(){
-  const page=state.page,form=page==='mallForm',active=form?'mall'+({group:'Group',joint:'Joint',coupon:'Coupon'}[mallState.formType]):page,marketing=['mallGroup','mallJoint','mallCoupon'].includes(active);
+  const page=state.page,form=page==='mallForm',active=form?'mall'+({group:'Group',joint:'Joint',coupon:'Coupon',invite:'Invite'}[mallState.formType]):page,marketing=['mallGroup','mallJoint','mallCoupon','mallInvite'].includes(active);
   document.querySelectorAll('.menu-item').forEach(e=>e.classList.toggle('active',e.dataset.page===active));
   document.querySelectorAll('[data-nav-toggle]').forEach(e=>e.classList.remove('active-parent'));
   document.querySelector('[data-nav-toggle="mall"]').classList.add('active-parent');
   document.querySelector(`[data-nav-toggle="${marketing?'marketing':'courseMall'}"]`).classList.add('active-parent');
-  $('#crumb').textContent='商城工具 / '+(marketing?'营销工具':'课程商城')+' / '+(form?({group:'拼团',joint:'联报',coupon:'优惠券'}[mallState.formType]+' / 新建'):mallPages[page]);
-  const view={mallDecor:mallDecorPage,mallShelf:mallShelfPage,mallGroup:()=>mallActivityPage('group'),mallJoint:()=>mallActivityPage('joint'),mallCoupon:()=>mallActivityPage('coupon'),mallForm:mallFormPage}[page];
+  $('#crumb').textContent='商城工具 / '+(marketing?'营销工具':'课程商城')+' / '+(form?({group:'拼团',joint:'联报',coupon:'优惠券',invite:'邀请有礼'}[mallState.formType]+' / 新建'):mallPages[page]);
+  const view={mallDecor:mallDecorPage,mallShelf:mallShelfPage,mallGroup:()=>mallActivityPage('group'),mallJoint:()=>mallActivityPage('joint'),mallCoupon:()=>mallActivityPage('coupon'),mallInvite:()=>invitationList(),mallForm:mallFormPage}[page];
   $('#view').innerHTML=view()+(mallState.picker?mallPickerPage():'');
 }
 function mallCourses(){return a.courses.map((c,i)=>({...c,index:i}))}

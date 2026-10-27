@@ -68,9 +68,11 @@ assert.equal(run('JSON.stringify(a.orders)'),beforeOrders);
 assert.equal(run('trialState.requests[0].confirmedBy'),'教务岗');
 assert.equal(run('trialState.requests[0].scheduledTime'),time);
 run("nav('classes')");assert(page().includes('试听名单（已确认排班）'));assert(page().includes('试听新生'));
-run("a.tab='试听学生';nav('students')");assert(page().includes('试听新生'));
+run("nav('students');studentTermSetTab('试听学生');studentTermSetFilter('term',trialState.requests[0].academicTerm)");assert(page().includes('试听新生'));
 run("a.selectedStudent=a.students.length-1;nav('studentDetail')");
-assert(page().includes('尚未产生正式报名订单'));assert(!page().includes('¥1,000.00'));
+assert(page().includes('沟通记录'));assert(!page().includes('studentProfileTab('));
+run("studentProfileTab('购课信息')");
+assert(page().includes('暂无正式报名课程'));assert(page().includes('试听课程'));assert(!page().includes('¥1,000.00'));
 run(`state.page='trialManage';trialOpenReview(${first})`);assert(page().includes('提前10分钟到教室'));
 assert(!page().includes('onclick="trialConfirm('));
 
@@ -139,10 +141,11 @@ const shell=vm.createContext({document:context.document,URL,location:{href:'http
 for(const match of html.matchAll(/<script(?: src="([^"]+)")?>([\s\S]*?)<\/script>/g)){
   vm.runInContext(match[1]?fs.readFileSync(path.join(root,match[1]),'utf8'):match[2],shell);
 }
-for(const [route,title] of [['quickTrial','预约试听'],['trialManage','试听管理'],['quickEnroll','报名'],['classes','班级管理']]){
+for(const [route,title] of [['quickTrial','预约试听'],['trialManage','试听管理'],['quickEnroll','报名'],['classes','班级管理'],['students','正价学生']]){
   vm.runInContext(`state.page='${route}';render()`,shell);
   assert(page().includes(title));
 }
-assert(html.indexOf('data-page="quickTrial"')<html.indexOf('data-page="quickEnroll"'));
+assert(!html.includes('data-page="quickTrial"'),'试听通过线索流程进入，不恢复已取消的快捷入口');
+assert(!html.includes('data-page="quickEnroll"'),'报名通过业务页面进入，不恢复已取消的快捷入口');
 assert(html.includes('data-page="trialManage"'));
 console.log('PASS: trial wizard, pending-only submit, academic permission, duplicate/capacity/time checks, cancellation, confirmed class roster, student reuse, source lead history, no paid enrollment effects.');

@@ -5,15 +5,18 @@ let leadRecordSequence=0;
 function leadCreateRecordDraft(context,lead=null,note=''){
   return {context,lead,note,noteId:context==='registration'?'lead-note':context==='basicEdit'?'lead-edit-note':'lead-record-note',saveId:context==='upload'?'lead-record-save':'lead-registration-save',items:[],phase:'idle',recorder:null,stream:null,timer:null,started:0,notice:''};
 }
-function leadOpenUpload(channel='其他'){
+function leadOpenUpload(channel='其他',completion=false){
   if(!leadRequireFollow())return;
   leadDisposeRecord();
   leadRecordDraft=leadCreateRecordDraft('upload',leadState.leads[leadState.selected]);
   leadRecordDraft.channel=channel;
+  leadRecordDraft.completion=completion;
   leadState.modal='upload';leadRender();
+  if(completion)leadCollectCommunication();
 }
 function leadUploadRecordForm(){
   if(!leadRecordDraft)leadRecordDraft=leadCreateRecordDraft('upload',leadState.leads[leadState.selected]);
+  if(leadRecordDraft.completion)return leadCompletionForm();
   return `<p class="record-intro">输入沟通内容，或添加图片、语音转为文字；校对后保存到当前线索。</p>${leadCommunicationFields(leadRecordDraft.channel||'其他')}${leadRecordEditor('沟通说明（必填）')}
     <div class="modal-actions"><button class="btn" onclick="leadCloseUpload()">取消</button><button class="btn primary" id="lead-record-save" onclick="leadSaveUpload()">保存跟进</button></div>`;
 }
@@ -38,7 +41,7 @@ function leadRecordEditor(label){
     <input id="lead-record-audio" type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm,.aac,.flac" multiple hidden onchange="leadAddRecordFiles(this.files,'audio');this.value=''">
     <div id="lead-record-notice" class="record-notice" role="status" ${leadRecordDraft.notice?'':'hidden'}>${esc(leadRecordDraft.notice)}</div>
     <div id="lead-record-attachments" class="record-attachments">${leadRecordAttachmentsHTML()}</div>
-    <p class="record-help">转文字结果会追加到输入框，原有内容和附件保留。${leadRecordDraft.context==='registration'?'随线索登记一并保存。':leadRecordDraft.context==='enrollment'?'随确认报名一并保存。':leadRecordDraft.context==='trial'?'随提交试听预约一并保存。':leadRecordDraft.context==='basicEdit'?'保存修改时新增为一条跟进记录；留空且不添加附件时不新增记录。':''}附件仅保留在当前页面会话中。</p>`;
+    <p class="record-help">转文字结果会追加到输入框，原有内容和附件保留。${leadRecordDraft.context==='registration'?'随线索登记一并保存。':leadRecordDraft.context==='enrollment'?'随确认报名一并保存。':leadRecordDraft.context==='trial'?'随提交试听预约一并保存。':leadRecordDraft.context==='basicEdit'?'保存修改时新增为一条跟进记录；留空且不添加附件时不新增记录。':''}保存后，附件随记录保存在本机浏览器中。</p>`;
 }
 function leadRecordAttachmentsHTML(){
   return (leadRecordDraft?.items||[]).map(item=>`<div class="record-attachment">
@@ -93,6 +96,7 @@ async function leadTranscribeRecord(id){
     if(input)input.value=draft.note;
     item.transcript=text;item.applied=true;item.status='done';item.message='文字已追加，请校对后保存';
     leadRecordNotice('识别文字已追加到输入框，请核对姓名、时间和数字。');
+    if(draft.completion)leadScheduleCommunicationAnalysis();
   }catch(error){
     if(leadRecordDraft!==draft||!draft.items.includes(item))return;
     item.status='error';item.message=error?.message==='empty-result'?'未识别到文字，可重新识别或手动填写':'转文字失败，请重试；附件和已输入内容已保留';
@@ -152,6 +156,7 @@ async function leadToggleRecording(){
 function leadDisposeRecord(){
   const draft=leadRecordDraft;if(!draft)return;
   leadRecordDraft=null;
+  globalThis.clearTimeout?.(draft.analysisTimer);
   if(draft.recorder){draft.recorder.onstop=null;draft.recorder.ondataavailable=null;draft.recorder.onerror=null;try{if(draft.recorder.state!=='inactive')draft.recorder.stop()}catch{}}
   leadStopRecordTracks(draft);
   draft.items.forEach(item=>{item.controller?.abort();URL.revokeObjectURL(item.url)});
@@ -198,11 +203,15 @@ function leadSaveUpload(){
   if(draft.items.some(item=>item.status==='busy')){leadRecordNotice('正在转文字，请等待完成，或移除对应附件后保存。');return}
   const text=$('#lead-record-note').value.trim();
   if(!text){leadRecordNotice('请填写沟通说明；可将图片、语音转文字并校对后保存。');return}
+  if(draft.completion&&draft.uploadState==='busy'){leadRecordNotice('沟通记录正在上传，请稍候再保存。');return}
+  const nextAction=draft.completion?leadReadCompletionAction():null;if(nextAction===false)return;
   const data=leadReadCommunication(text);if(!data)return;
+  if(nextAction){data.nextAction=nextAction;data.analysis=draft.analysis?{...draft.analysis,manuallyEdited:{...draft.manualFields}}:null}
   const files=draft.items.map(item=>({fileName:item.file.name,url:item.url,size:item.file.size,kind:item.kind,transcript:item.transcript||''}));
   leadAppendCommunication(draft.lead,text,files,data);
   draft.items=[]; // URL 所有权移交给已保存记录，关闭编辑器时不释放。
   leadDisposeRecord();leadState.modal=null;leadRender();toast('沟通记录已保存');
+  if(nextAction)leadDispatchCompletionAction(nextAction);
 }
 function leadRecordFiles(attachment){return attachment?.files||(attachment?.fileName?[attachment]:[])}
 function leadRecordFilesHTML(attachment){
@@ -210,7 +219,8 @@ function leadRecordFilesHTML(attachment){
 }
 function leadCleanClosedRecord(){
   if(!leadRecordDraft)return;
-  const active=leadRecordDraft.context==='enrollment'?['enroll','quickEnroll'].includes(state.page):
+  const active=leadRecordDraft.context==='studentCommunication'?state.page==='studentCommunication'&&leadRecordDraft.actorId===studentTermActor():
+    leadRecordDraft.context==='enrollment'?['enroll','quickEnroll'].includes(state.page):
     leadRecordDraft.context==='trial'?state.page==='quickTrial'&&leadRecordDraft.trial===trialState.draft&&trialState.draft.actorId===trialActor().id&&!trialState.successId:
     leadRecordDraft.context==='registration'?state.page==='leadForm':
     leadRecordDraft.context==='basicEdit'?state.page==='leadDetail'&&!leadIsRegistrationDetail()&&leadState.modal==='form'&&leadState.formMode==='edit'&&leadRecordDraft.lead===leadState.leads[leadState.selected]:

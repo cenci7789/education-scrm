@@ -1,0 +1,10 @@
+const wxLandingId=new URL(location.href).searchParams.get('id');
+const wxLandingEscape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function wxLandingRender(item,code,tag='',error=''){
+ const host=document.getElementById('wx-landing-root');if(!item){host.innerHTML='<h1>暂时无法打开活码</h1><p>本地浏览器没有这条活码数据，请在创建活码的浏览器中打开。</p>';return}
+ if(!item.active){host.innerHTML='<h1>活码已停用</h1><p>请联系机构获取新的二维码。</p>';return}
+ document.title=item.title||'微信活码';host.innerHTML=`<h1>${wxLandingEscape(item.title)}</h1><div class="wx-landing-card">${item.type!=='personal'?`<h2>${wxLandingEscape(item.groupName)}</h2><p>${wxLandingEscape(item.intro)}</p>`:''}${item.type==='tagged'?`<p>${wxLandingEscape(item.tagPrompt)}</p><div class="wx-tag-buttons">${item.tags.map((label,i)=>`<button class="${label===tag?'active':''}" onclick="wxLandingChoose(${i})">${wxLandingEscape(label)}</button>`).join('')}</div>`:''}${code?`<img class="wx-target" src="${WxLiveRuntime.image(code.image)}" alt="微信二维码"><p>${wxLandingEscape(item.guide)}</p>`:`<p>${error|| (item.type==='tagged'&&!tag?'请选择分组标签':'暂无可用二维码，请联系客服')}</p>`}<p>${wxLandingEscape(item.contactText)}</p>${item.phone?`<p>${/^[+\d ()-]{5,30}$/.test(item.phone)?`<a href="tel:${wxLandingEscape(item.phone)}">${wxLandingEscape(item.phone)}</a>`:wxLandingEscape(item.phone)}</p>`:''}</div><small>长按识别二维码；是否能加好友或入群，以微信提示为准。</small>`;
+}
+function wxLandingVisit(tag=''){try{const result=WxLiveRuntime.visit(localStorage,wxLandingId,tag);wxLandingRender(result.item,result.code,tag)}catch{wxLandingRender(WxLiveRuntime.load(localStorage).find(x=>x.id===wxLandingId),null,tag,'浏览器无法保存访问数据，请稍后重试。')}}
+function wxLandingChoose(index){const item=WxLiveRuntime.load(localStorage).find(x=>x.id===wxLandingId);if(!item?.tags[index])return;wxLandingVisit(item.tags[index])}
+const wxLandingItem=WxLiveRuntime.load(localStorage).find(x=>x.id===wxLandingId);if(wxLandingItem?.type==='tagged')wxLandingRender(wxLandingItem,null);else wxLandingVisit();

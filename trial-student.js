@@ -1,6 +1,6 @@
 // 试听与报名共用表单样式、学校行和沟通记录编辑器，分别保存业务草稿。
 function trialStudentData(source){
-  return {name:source.name||'',phone:source.phone||'',grade:source.grade||'',guardian:source.guardian||'',gender:source.gender||'',source:source.source||'',
+   return {name:source.name||'',phone:source.phone||'',grade:source.grade||'',guardian:source.guardian||'',gender:source.gender||'',source:source.source||'',schoolSystem:source.schoolSystem==='54'?'54':'63',
     schools:(source.schools?.length?source.schools:[{stage:'小学',name:source.school||'',entryYear:''}]).map(s=>({...s}))};
 }
 function trialEnsureRecord(){

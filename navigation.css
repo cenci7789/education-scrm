@@ -8,4 +8,7 @@
 .nav-chevron{color:#7f98b9;font-size:16px;line-height:1;transition:transform .2s}
 .nav-toggle[aria-expanded="false"] .nav-chevron{transform:rotate(-90deg)}
 .nav-children[hidden]{display:none!important}
+.menu-item.nav-coming-soon:disabled{color:#929aa6;opacity:1;background:transparent;cursor:not-allowed}
+.nav-phase-badge{display:inline-block;margin-left:8px;padding:1px 6px;border:1px solid #626d7d;border-radius:4px;color:#a4acb7;font-size:11px;line-height:1.5;vertical-align:middle}
+.tab .nav-phase-badge{border-color:#d4dbe5;color:#68788e;background:#f4f6f9;font-weight:400}
 @media(max-width:680px){.sidebar{display:block;max-height:280px;overflow:auto}.nav-level-1,.nav-level-2,.nav-level-3{white-space:normal}.nav-level-3{width:100%}}

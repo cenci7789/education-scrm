@@ -1,0 +1,37 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const {run,node,page}=require('./lead-registration.cjs');
+for(const file of ['withdraw-refund.js','refund-workflow.js','refund-call-flow.js'])run(fs.readFileSync(path.join(__dirname,'..',file),'utf8'));
+run("permissionChangeIdentity('admin');a.selectedStudent=0;nav('withdraw');refundNew();a.classes[0].sessions=[{id:'s1',name:'第一课'},{id:'s2',name:'第二课'}];a.orders=[{studentId:a.students[0].id,paid:'200.50',items:[{classId:a.classes[0].id,tuitionCents:20050,materialCents:0,discountCents:0,dueCents:20050,sessionCount:2,startSession:1}]}];a.attendance=[];withdrawSelectClass(a.classes[0].id);refundSelectStop('s1');refundReasonInput('时间冲突');refundSubmit();refundCallStart();refundCallFinish();refundResultChange('有效沟通');refundOpinionChange('继续退费');refundCallField('method','balance')");
+assert.equal(node('#refund-amount-choice').hidden,false);
+assert.equal(run('refundWork.call.amount'),'100.25');
+assert(run('refundCallModal().includes("refund-call-fees")'));
+for(const label of ['原价','优惠','实收','课单价','已上讲次','剩余讲次','剩余学费'])assert(run('refundCallFees(refundCurrent())').includes(label));
+assert(run('refundCallFees(refundCurrent()).includes("100.25")'));
+assert(run('refundCallFees({fees:{unit:33333.333}}).includes("333.33")'),'fractional-cent unit price remains visible');
+for(const invalid of ['', '0', '-1', '95.251', '1e2', '100.26']){
+  run(`refundCallField('amount',${JSON.stringify(invalid)});refundCompleteCall()`);
+  assert.equal(run('refundCurrent().calls.length'),0,'invalid amount '+invalid);
+}
+run("refundCallField('amount','95.25');refundCompleteCall()");
+assert.equal(run('refundCurrent().amountCents'),9525);
+assert.equal(run('refundCurrent().calls[0].refundAmountCents'),9525);
+assert.equal(run('refundCurrent().fees.remainingFee'),10025,'original fee snapshot unchanged');
+assert(page().includes('退费金额：'));
+run("refundCallStart();refundCallFinish();refundResultChange('有效沟通');refundOpinionChange('继续退费')");
+assert.equal(run('refundWork.call.amount'),'95.25','teacher inherits latest amount');
+run("refundCallField('amount','90.25');refundCompleteCall()");
+assert.equal(run('refundCurrent().amountCents'),9025);
+assert.equal(run('refundCurrent().calls[0].refundAmountCents'),9525,'first amount is immutable');
+run("refundWork.opinion='同意';refundWork.approved='95.25';refundDecision(true)");
+assert.equal(run('refundCurrent().step'),4);
+assert.equal(run('refundCurrent().approvedCents'),9025,'approval uses communication amount, ignoring removed approval input');
+run("refundWork.opinion='退回核对';refundDecision(false);refundCallStart();refundCallFinish();refundResultChange('未接听')");
+assert.equal(node('#refund-amount-choice').hidden,true);
+run("refundResultChange('有效沟通');refundOpinionChange('撤回申请');refundCallField('amount','');refundCompleteCall()");
+assert.equal(run('refundCurrent().closed'),'已撤回');
+assert.equal(run('refundCurrent().calls.at(-1).refundAmountCents'),undefined,'withdrawal does not record amount');
+run("delete refundCurrent().closed;refundCurrent().step=3;refundCurrent().amountCents=null;refundCurrent().requestedAmountCents=9000;refundRecalculate()");
+assert.equal(run('refundCurrent().amountCents'),9000,'later fee recalculation preserves entered amount');
+console.log('PASS: conditional refund amount, fee popover, money validation, communication snapshots, teacher defaults and approval limits.');

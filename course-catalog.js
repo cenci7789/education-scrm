@@ -1,4 +1,5 @@
 const courseCategories=['班课','1对1','1对N'];
+function courseCategoryTabs(){return `<div class="tabs"><button class="tab active" onclick="courseTab('班课')">班课</button>${courseCategories.slice(1).map(name=>`<button class="tab" disabled aria-disabled="true" title="二期开发">${name} <span class="nav-phase-badge">二期</span></button>`).join('')}</div>`}
 academicPages.courseForm='创建课程';
 function courseCategory(course){return courseCategories.includes(course.courseCategory)?course.courseCategory:'班课'}
 function courseTeachingFormat(course){return ['直播','直播课'].includes(course.teachingFormat)?'直播':'面授'}
@@ -11,14 +12,19 @@ function courseCatalogResults(){
   return aTable(['课程名称','授课形式','学科','年级','学期','班型','状态','操作'],rows.map(c=>`<tr><td><a onclick="courseOpenForm(${c.index})">${esc(c.name)}</a></td><td>${courseTeachingFormat(c)}课</td><td>${esc(c.subject)}</td><td>${esc(c.grade)}</td><td>${esc(c.term)}</td><td>${esc(c.classType)}</td><td><span class="badge ${c.active?'':'off'}">${c.active?'已启用':'已禁用'}</span></td><td><div class="actions"><a onclick="classOpenCreate(${c.index})">创建班级</a><a onclick="courseOpenForm(${c.index})">编辑</a><a onclick="a.courses[${c.index}].active=!a.courses[${c.index}].active;academicRender()">${c.active?'禁用':'启用'}</a></div></td></tr>`))+(!rows.length?'<div class="empty">暂无符合条件的课程</div>':'')+`<div class="data-bar">共 ${rows.length} 条课程</div>`;
 }
 coursePage=function(){
-  if(!courseCategories.includes(a.courseCategory))a.courseCategory='班课';
-  return aHeading('课程管理','管理课程、授课形式、课程属性与讲次')+`<div class="card">${aTabs(courseCategories,a.courseCategory,'courseTab')}<div class="pad"><div class="toolbar"><div class="toolbar-left"><input class="input" style="width:260px" placeholder="请输入课程名称" value="${esc(a.courseSearch||'')}" oninput="courseSearch(this.value)"></div><div class="toolbar-right"><button class="btn primary" onclick="courseOpenForm(null)">+ 创建课程</button><button class="btn" onclick="toast('课程导入规则待确认')">导入课程</button></div></div><div id="course-catalog-results">${courseCatalogResults()}</div></div></div>`;
+  a.courseCategory='班课';
+  return aHeading('课程管理','管理课程、授课形式、课程属性与讲次')+`<div class="card">${courseCategoryTabs()}<div class="pad"><div class="toolbar"><div class="toolbar-left"><input class="input" style="width:260px" placeholder="请输入课程名称" value="${esc(a.courseSearch||'')}" oninput="courseSearch(this.value)"></div><div class="toolbar-right"><button class="btn primary" onclick="courseOpenForm(null)">+ 创建课程</button><button class="btn" onclick="toast('课程导入规则待确认')">导入课程</button></div></div><div id="course-catalog-results">${courseCatalogResults()}</div></div></div>`;
 };
-courseTab=function(name){if(!courseCategories.includes(name))return;a.courseCategory=name;academicRender()};
+courseTab=function(name){if(name!=='班课')return;a.courseCategory=name;academicRender()};
 function courseSearch(value){a.courseSearch=value;$('#course-catalog-results').innerHTML=courseCatalogResults()}
-function courseOpenForm(index){a.courseSessionDraft=null;a.selectedClass=index;academicPages.courseForm=index===null?'创建课程':'编辑课程';nav('courseForm')}
+function courseOpenForm(index){if(index!==null&&a.courses[index]&&courseCategory(a.courses[index])!=='班课'){toast('该课程分类暂未开放');return}a.courseCategory='班课';a.courseSessionDraft=null;a.selectedClass=index;academicPages.courseForm=index===null?'创建课程':'编辑课程';nav('courseForm')}
 function courseCatalogSelect(id,options,value){
   return `<select class="select" id="${id}">${options.map(option=>{const [key,label]=Array.isArray(option)?option:[option,option];return `<option value="${esc(key)}" ${key===value?'selected':''}>${esc(label)}</option>`}).join('')}</select>`;
+}
+function courseConfiguredClassTypes(){return [...new Set((state.config?.班型||[]).filter(row=>row[3]!==false).map(row=>row[0]).filter(Boolean))]}
+function courseClassTypeSelect(value=''){
+  const names=courseConfiguredClassTypes();
+  return `<select class="select" id="course-class-type"><option value="">${names.length?'请选择班型':'暂无已启用班型（可不选）'}</option>${names.map(name=>`<option value="${esc(name)}" ${name===value?'selected':''}>${esc(name)}</option>`).join('')}${value&&!names.includes(value)?`<option value="${esc(value)}" selected disabled>${esc(value)}（历史班型）</option>`:''}</select><div class="help">选项来自教学配置中的已启用班型。</div>`;
 }
 const courseCatalogOriginalForm=courseForm;
 courseForm=function(){
@@ -26,9 +32,11 @@ courseForm=function(){
   let html=courseCatalogOriginalForm().replaceAll('创建面授课程','创建课程').replaceAll('编辑面授课程','编辑课程');
   const fields=aField('课程分类',courseCatalogSelect('course-category',courseCategories,c?courseCategory(c):a.courseCategory||'班课'),true)+aField('授课形式',courseCatalogSelect('course-format',[['面授','面授课'],['直播','直播课']],c?courseTeachingFormat(c):'面授'),true);
   html=html.replace('<div class="form-grid">','<div class="form-grid">'+fields);
+  html=html.replace(/(<option value="(?:1对1|1对N)"[^>]*)(>)(1对1|1对N)(<\/option>)/g,'$1 disabled$2$3（二期）$4');
   html=html.replace(aField('课程类型',aSelect('course-type',['长期班','短期班','体验课'],'请选择课程类型'),true),'');
   html=html.replace(aField('收费模式',aSelect('course-charge',['整期','按课时'],'请选择收费模式'),true),'');
   html=html.replace(aField('上课时间展示',aInput('course-time-label','例如：每周日 08:00—10:00'),true),'');
+  html=html.replace(/<select[^>]*id="course-class-type"[^>]*>[\s\S]*?<\/select>/,()=>courseClassTypeSelect(c?.classType));
   courseEnsureSessions();
   html=html.replace('<button class="btn" onclick="addSession()">+ 添加讲次</button>','<button class="btn" onclick="addSession()">+ 添加讲次</button> <button class="btn" onclick="courseOpenSessionImport()">批量导入</button>');
   html=html.replace('<div id="session-list"><div class="empty" style="margin-top:14px">尚未添加讲次</div></div>',`<div id="session-list">${courseSessionList()}</div><div id="course-session-modal"></div>`);
@@ -45,14 +53,18 @@ saveCourse=function(){
   if(a.courseSessionDraft?.editor){toast('请先确认或取消讲次编辑');return}
   const name=$('#course-name').value.trim(),category=$('#course-category').value,format=$('#course-format').value;
   if(!name){toast('请输入课程名称');return}
+  if(category!=='班课'){toast('1对1、1对N课程暂未开放');return}
   if(!courseCategories.includes(category)||!['面授','直播'].includes(format)){toast('请选择课程分类和授课形式');return}
   const old=a.selectedClass===null?null:a.courses[a.selectedClass];
   if(a.courses.some(c=>c!==old&&c.name===name)){toast('课程名称已存在');return}
-  const feeText=$('#course-fee').value.trim(),materialText=$('#course-material').value.trim();
-  if([feeText,materialText].some(v=>v!==''&&(!Number.isFinite(Number(v))||Number(v)<0))){toast('课程费、教辅费须为大于等于0的金额');return}
+  const classType=$('#course-class-type').value;
+  if(classType&&!courseConfiguredClassTypes().includes(classType)&&classType!==old?.classType){toast('请选择教学配置中已启用的班型');return}
+  const feeText=$('#course-fee').value.trim(),materialText='0';
+  if([feeText,materialText].some(v=>v!==''&&(!Number.isFinite(Number(v))||Number(v)<0))){toast('课程费须为大于等于0的金额');return}
   const c={...(old||{}),name,courseCategory:category,teachingFormat:format,active:old?.active??true,sessions:courseEnsureSessions().sessions.map((s,index)=>({...s,number:index+1}))};
   c.fee=feeText===''?null:Math.round(Number(feeText)*100)/100;c.materialFee=materialText===''?0:Math.round(Number(materialText)*100)/100;
-  for(const [id,key,fallback] of [['course-year','year',''],['course-subject','subject','数学'],['course-grade','grade','4年级'],['course-term','term','秋季'],['course-class-type','classType','S+班']])c[key]=$('#'+id).value||old?.[key]||fallback;
+  for(const [id,key,fallback] of [['course-year','year',''],['course-subject','subject','数学'],['course-grade','grade','4年级'],['course-term','term','秋季']])c[key]=$('#'+id).value||old?.[key]||fallback;
+  c.classType=classType;
   if(a.selectedClass===null)a.courses.unshift(c);else a.courses[a.selectedClass]=c;
   if(old&&old.name!==name)for(const cls of a.classes)if(cls.course===old.name)cls.course=name;
   a.courseCategory=category;a.courseSearch='';a.selectedClass=null;a.courseSessionDraft=null;nav('course');toast('课程已保存');

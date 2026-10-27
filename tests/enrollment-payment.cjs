@@ -1,7 +1,9 @@
 const assert=require('node:assert/strict');
 const {run,node,page,addPaymentProof}=require('./lead-registration.cjs');
+let studentSequence=0;
 function open(){
   run("permissionChangeIdentity('admin');state.page='quickEnroll';a.selectedStudent=null;render();a.enrollment.data.name='结算测试';a.enrollment.data.phone='13912345678';a.enrollment.data.grade='小二';a.enrollStep=2;enrollmentOpenClasses();enrollmentToggleClass(a.classes[0].id,true);enrollmentToggleClass(a.classes[1].id,true);enrollmentConfirmClasses();enrollmentClassesNext()");
+  run('a.enrollment.data.name += '+JSON.stringify(String(++studentSequence)));
   node('#pay-channel').value='现金';node('#pay-amount').value='';
   node('#pay-note').value='';
 }
@@ -26,7 +28,7 @@ node('#pay-note').value='家长确认 <备注>';
 run('enrollmentAddReceipt()');
 assert.equal(run('enrollmentCheckout().receipts.length'),2);
 assert.equal(run('enrollmentCheckout().receipts[0].amount'),'200');
-node('#pay-channel-1').value='微信';node('#pay-amount-1').value='1800';
+node('#pay-channel-1').value='POS刷卡';node('#pay-amount-1').value='1800';
 run('enrollmentToggleCoupon()');
 assert(page().includes('核验服务待接入'));assert.equal(run('enrollmentQuote().dueCents'),200000);
 assert.equal(run('enrollmentCheckout().receipts[1].amount'),'1800');
@@ -43,11 +45,14 @@ for(const amount of ['','-1','0.001','1801']){
 }
 node('#pay-amount-1').value='1800';
 addPaymentProof(0);addPaymentProof(1);
+for(const channel of ['微信','支付宝','银行卡']){node('#pay-channel-1').value=channel;run('finishEnroll()');assert.equal(snapshot(),before,'removed manual channel must be rejected: '+channel)}
+node('#pay-channel-1').value='POS刷卡';
 run('finishEnroll()');
 assert.equal(run('a.orders[0].originalAmount'),'¥2000.00');
 assert.equal(run('a.orders[0].amount'),'¥2000.00');assert.equal(run('a.orders[0].paid'),'¥2000.00');
 assert.equal(run('a.orders[0].items[0].discountCents'),0);assert.equal(run('a.orders[0].items[1].discountCents'),0);
 assert.equal(run('a.orders[0].receipts.length'),2);assert.equal(run('a.orders[0].handlingCampus'),undefined);
+assert.equal(run('a.orders[0].receipts[1].channel'),'POS刷卡');
 assert.equal(run('a.orders[0].operator.account'),'wangmin');
 assert.equal(run('a.orders[0].note'),'家长确认 <备注>');
 assert.equal(run('a.orders[0].status'),'交易成功');
@@ -66,7 +71,7 @@ for(const mode of ['商城支付']){
   assert.equal(run('a.orders[0].payMode'),mode);assert.equal(run('a.orders[0].receipts.length'),0);
 }
 open();node('#pay-amount').value='100';run('enrollmentAddReceipt()');
-node('#pay-channel-1').value='微信';node('#pay-amount-1').value='50';
+node('#pay-channel-1').value='POS刷卡';node('#pay-amount-1').value='50';
 run('enrollmentRemoveReceipt(1)');
 assert.equal(run('enrollmentCheckout().receipts.length'),1);
 assert.equal(run('enrollmentCheckout().receipts[0].amount'),'100');

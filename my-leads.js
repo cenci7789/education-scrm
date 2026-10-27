@@ -61,7 +61,7 @@ function myEnrolledCourses(lead){
     const c=a.classes.find(c=>c.id===item.classId);
     const name=item.className||c?.name||item.course;if(!name)return;
     const refunded=['已退费','已退款','退款成功'];
-    const status=[item.enrollmentStatus,item.status,order.enrollmentStatus,order.status].some(value=>refunded.includes(value))?'已退费':'上课中';
+    const status=[item.enrollmentStatus,item.status,order.enrollmentStatus,order.status].some(value=>refunded.includes(value))?'已退费':studentTermEnrollmentStatus(c||{},item);
     const key=(item.classId||name)+'|'+status;if(seen.has(key))return;
     seen.add(key);rows.push({name,course:item.course||c?.course||'',status});
   };

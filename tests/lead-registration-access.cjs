@@ -43,7 +43,7 @@ for(const identity of ['finance','academic','manager','sales','admin']){
 }
 // Full sales detail keeps its original controls and composer.
 run(`permissionChangeIdentity('sales');leadDetail(${own},'myLeads')`);
-assert(page().includes('lead-follow-card'));assert(page().includes('lead-detail-dock'));
+assert(page().includes('去沟通'));assert(page().includes('lead-detail-dock'));
 run("leadOpenForm('edit')");
 assert(page().includes('id="lead-edit-note"'));
 run('leadCloseForm();leadOpenUpload()');

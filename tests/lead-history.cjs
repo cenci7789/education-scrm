@@ -3,13 +3,13 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {run,node,page,context}=require('./lead-registration.cjs');
 context.URL={createObjectURL:()=> 'blob:first-record',revokeObjectURL(){}};
-run("permissionChangeIdentity('admin');state.page='quickRegister';render()");
+run("permissionChangeIdentity('admin');state.config.年级.push(['初二',true,'初二',true]);state.page='quickRegister';render()");
 const originalQuery=context.document.querySelector,originalQueryAll=context.document.querySelectorAll;
 for(const mode of ['uniform','self','specific']){
   run('leadOpenForm()');
   const fields={'lead-name':'首次登记测试','lead-phone':'13812345678','lead-grade':'初二','lead-campus':'园区校区','lead-source':'家长上门','lead-note':'家长希望试听数学、英语\n沟通备注 <script> & 核实'};
   for(const [key,value] of Object.entries(fields))node('#'+key).value=value;
-  run("leadState.assigneeId=state.staff.findIndex(person=>person.account==='sunqian')");
+  run("leadState.assigneeIds=[state.staff.findIndex(person=>person.account==='sunqian')]");
   context.document.querySelector=selector=>selector==='input[name="lead-assign"]:checked'?{value:mode}:originalQuery(selector);
   context.document.querySelectorAll=selector=>selector==='input[name="lead-subject"]:checked'?[{value:'数学'},{value:'英语'}]:originalQueryAll(selector);
   run("leadAddRecordFiles([{name:'首次沟通.png',size:100,type:'image/png'}],'image');saveLead()");

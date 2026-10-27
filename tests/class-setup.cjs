@@ -8,6 +8,8 @@ assert(page().includes(`value="${course}" data-course-name`));
 assert(page().includes('readonly aria-readonly="true"'));
 assert(page().includes('虚设座位'));assert(!page().includes('调课虚位'));
 assert.match(page(),/id="class-extra"[^>]*value="5"/);
+assert.match(page(),/id="class-academic-teacher" required/);
+assert(page().includes('请选择教务老师'));
 node('#class-name').dataset={courseName:course};node('#class-name').value=course;
 node('#class-course').value=run('a.courses[0].name');run('classCourseChanged()');
 assert.equal(node('#class-name').value,run('a.courses[0].name'));
@@ -23,12 +25,22 @@ run("classScheduleSetDate('2026-10-24');classScheduleSetSlot(6,0,'start','08:00'
 assert.equal(run('a.classes.length'),count);
 node('#class-extra').value='1.5';run('saveClass()');assert.equal(run('a.classes.length'),count);
 node('#class-extra').value='0';node('#class-capacity').value='999';run('saveClass()');
+assert.equal(run('a.classes.length'),count,'academic teacher is required');
+node('#class-academic-teacher').value=run('classAcademicTeacherStaff()[0].classTeacherId');run('saveClass()');
+assert.equal(run('a.classes.length'),count,'a real active teaching staff member is required; no seeded fallback');
+node('#class-teacher-form').value=run('state.staff[0].name');run('saveClass()');
 assert.equal(run('a.classes.length'),count+1);assert.equal(run('a.classes[0].name'),'自定义周末班');
 assert.equal(run('a.classes[0].capacity'),20);assert.equal(run('a.classes[0].virtualSeats'),0);
+assert.equal(run('a.classes[0].academicTeacher'),run('state.staff[0].name'));
 assert.equal(run('a.classes[2].name'),oldName,'creating from a course must not overwrite the old class');
 run("a.selectedClass=0;nav('classForm')");
 assert(page().includes('value="园区校区" selected'));assert(page().includes('value="教室02" selected'));
 assert.match(page(),/id="class-extra"[^>]*value="0"/);
+assert(page().includes(`value="${run('state.staff[0].classTeacherId')}" selected`));
+run('state.staff[0].active=false');
+const savedClass=run('JSON.stringify(a.classes[0])');run('saveClass()');
+assert.equal(run('JSON.stringify(a.classes[0])'),savedClass,'disabled teacher cannot be assigned');
+run('state.staff[0].active=true');
 
 // Save and edit an actual classroom, then use its configured capacity in a class.
 const originalQuery=context.document.querySelectorAll;

@@ -1,0 +1,8 @@
+// Public activity summary only; no student, contact or internal account data.
+const GroupShareCodec={
+ snapshot(activity){return {version:1,name:String(activity.name||'拼团活动'),start:String(activity.start||''),end:String(activity.end||''),hours:Number(activity.validHours||24),tiers:(activity.tiers||[{people:activity.people||parseInt(activity.limit)||2,mode:'price',value:activity.groupProducts?.[0]?.groupPrice??''}]).map(t=>({people:t.people,mode:t.mode,value:t.value})),courses:activity.groupProducts?.length?activity.groupProducts.map(c=>({name:c.name,price:c.price})): (activity.products||[]).map(name=>({name}))}},
+ encode(snapshot){return btoa(encodeURIComponent(JSON.stringify(snapshot)).replace(/%([0-9A-F]{2})/g,(_,hex)=>String.fromCharCode(parseInt(hex,16)))).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'')},
+ decode(value){if(!value||value.length>50000)throw Error('Invalid payload');const json=decodeURIComponent(Array.from(atob(value.replaceAll('-','+').replaceAll('_','/')),c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join(''));const data=JSON.parse(json);if(data?.version!==1||typeof data.name!=='string'||!Array.isArray(data.courses)||!Array.isArray(data.tiers)||data.courses.length>20||data.tiers.length>3)throw Error('Invalid activity');return data},
+ key(code){if(!/^[a-zA-Z0-9-]{6,80}$/.test(code||''))throw Error('Invalid code');return 'crm-group-share:'+code},
+ resolve(url,storage){const parsed=new URL(url),payload=new URLSearchParams(parsed.hash.slice(1)).get('data');if(payload)return this.decode(payload);const code=parsed.searchParams.get('s');const stored=storage.getItem(this.key(code));if(!stored)throw Error('此短链接仅在生成链接的浏览器中可用，请使用原链接。');return this.decode(stored)}
+};

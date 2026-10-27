@@ -95,6 +95,7 @@ function trialSubmit(){
   const actor=trialActor(),requests=intentions.map(item=>{
     const {classes,classFilters,classFilterGrade,studentPicker,sessionPicker,rebookRequestId,...studentData}=d;
     const r={...studentData,...item,schools:d.schools.map(s=>({...s})),files,id:++trialState.sequence,status:'待排班',actorId:actor.id,actor:actor.name,submittedAt:new Date().toLocaleString('zh-CN'),classId:null,scheduledTime:'',confirmedBy:'',confirmedAt:''};
+    r.academicTerm=studentClassTerm(a.classes.find(c=>c.id===r.requestedClassId),r);
     if(r.information||files.length)r.informationRecord=leadHistoryEntry('试听预约信息',r.information||'添加了试听预约附件',{files});
     trialLog(r,'预约试听',`提交${r.requestedClassName}试听申请，意向校区：${r.campus}，意向时间：${r.preferredTime?r.preferredTime.replace('T',' '):'待教务安排'}。待教务确认排班。${r.note?'备注：'+r.note:''}${r.information?'\n信息记录：'+r.information:''}`,{files});
     return r;
@@ -134,7 +135,7 @@ function trialOpenReview(id){
   if(!trialState.requests.some(r=>r.id===id))return;
   trialState.modalId=id;render();
 }
-function trialClasses(r){return a.classes.filter(c=>c.course===r.course&&c.campus===r.campus&&['未开课','开课中'].includes(c.status))}
+function trialClasses(r){return a.classes.filter(c=>c.course===r.course&&c.campus===r.campus&&['未开课','开课中'].includes(classScheduleStatus(c)))}
 function trialReviewModal(){
   const r=trialState.requests.find(r=>r.id===trialState.modalId);if(!r)return '';
   const pending=r.status==='待排班',classes=trialClasses(r),c=a.classes.find(c=>c.id===r.classId);
@@ -172,12 +173,13 @@ function trialConfirm(id){
   if(regular){toast('该学生已正式在此班级就读，请选择其他试听班级');return}
   if(Number(c.students)+occupied.length>=Number(c.capacity)){toast('该讲次班级名额已满，请选择其他班级或时间');return}
   if(!student){
-    student={id:'TRIAL-'+r.id,name:r.name,phone:r.phone,grade:r.grade,guardian:r.guardian,schools:(r.schools||[]).map(s=>({...s})),school:r.schools?.[0]?.name||'',gender:r.gender||'',source:r.source||'',campus:r.campus,status:'试听',follow:'待跟进',className:'—',originLeadId:r.leadId||null};
+    student={id:'TRIAL-'+r.id,name:r.name,phone:r.phone,grade:r.grade,guardian:r.guardian,schools:(r.schools||[]).map(s=>({...s})),schoolSystem:r.schoolSystem==='54'?'54':'63',school:r.schools?.[0]?.name||'',gender:r.gender||'',source:r.source||'',campus:r.campus,status:'试听',follow:'待跟进',className:'—',originLeadId:r.leadId||null};
     if(r.informationRecord)student.history=[r.informationRecord];
     a.students.push(student);
   }
   // 试听按讲次进入独立名单，保留已有学生的正式班级和报名状态。
   Object.assign(r,{studentId:student.id,classId:c.id,scheduledTime:time,teacher:c.teacher,room:c.room,scheduleNote:$('#trial-schedule-note').value.trim(),status:'已排班',confirmedAt:new Date().toLocaleString('zh-CN'),confirmedBy:trialActor().name});
+  r.academicTerm=studentClassTerm(c);
   const scheduledSession=trialClassSessions(c).find(s=>!s.cancelled&&new Date(s.startsAt).getTime()===new Date(time).getTime());
   r.scheduledSessionName=scheduledSession?.name||'';r.scheduledEndTime=scheduledSession?trialSessionEndTime(scheduledSession):'';
   (c.trialRoster??=[]).push({requestId:r.id,studentId:student.id,time});

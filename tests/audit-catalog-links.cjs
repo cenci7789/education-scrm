@@ -1,0 +1,7 @@
+const assert=require('node:assert/strict');const {run,json,node}=require('./prototype-runtime.cjs')();
+run("mallState.shelved=[0,1];mallState.hiddenShelved=[1];mallShelfState.offered={0:[a.classes[0].id],1:[a.classes[1].id]};mallState.activities.coupon[0].config={courses:[{index:0,name:a.courses[0].name}]};courseOpenForm(null)");
+for(const [key,value] of Object.entries({'course-name':'插入新课程','course-category':'班课','course-format':'面授','course-fee':'888','course-year':'2026','course-subject':'数学','course-grade':'小二','course-term':'秋季'}))node('#'+key).value=value;
+run("courseEnsureSessions().sessions=[{id:'new-session',name:'一讲'}];saveCourse()");assert.deepEqual(json('mallState.shelved'),[1,2]);assert.deepEqual(json('mallState.hiddenShelved'),[2]);assert.equal(run('mallState.activities.coupon[0].config.courses[0].index'),1);assert.deepEqual(json('mallShelfState.offered[1]'),[run('a.classes[0].id')]);
+run('courseOpenForm(1)');node('#course-name').value='旧课程更名';run('saveCourse()');assert.equal(run('a.classes[0].course'),'旧课程更名');assert.equal(run('mallState.activities.coupon[0].config.courses[0].name'),'旧课程更名');
+run("a.selectedStudent=0;state.page='enroll';a.enrollment={data:{},classes:[{classId:a.classes[0].id,startSession:1}]}");assert.equal(run('enrollmentValidClasses()'),false,'duplicate class enrollment blocked');
+console.log('PASS new course insertion and rename preserve shelf, selected class and coupon links; duplicate enrollment blocked.');

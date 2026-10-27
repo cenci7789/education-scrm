@@ -54,6 +54,7 @@ assert.equal(run('JSON.stringify(a.courses[0].sessions)'),template,'scheduling c
 // Validated schedules persist on the class and are consumed by the existing trial lesson picker.
 node('#class-name').value='讲次排课测试班';node('#class-campus-form').value='城中校区';node('#class-room').value='教室01';
 node('#class-extra').value='5';node('#class-teacher-form').value='袁老师';
+node('#class-academic-teacher').value=run('classAcademicTeacherStaff()[0].classTeacherId');
 const before=run('a.classes.length');run('saveClass()');
 assert.equal(run('a.classes.length'),before+1);
 assert.equal(run('a.classes[0].sessions.length'),2);assert.equal(run('a.classes[0].scheduleSettings.days.length'),2);

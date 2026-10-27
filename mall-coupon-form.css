@@ -1,0 +1,27 @@
+.mall-coupon-form .card{padding:24px;margin-bottom:18px}
+.mall-coupon-form .coupon-row{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;margin:22px 0;font-size:13px}
+.mall-coupon-form .coupon-label{text-align:right;color:#526681;padding-top:9px}
+.mall-coupon-form .coupon-control{min-width:0;align-content:center}
+.mall-coupon-form .coupon-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:36px}
+.mall-coupon-form label{display:inline-flex;align-items:center;gap:5px}
+.mall-coupon-form input[type=radio],.mall-coupon-form input[type=checkbox]{accent-color:#315deb}
+.mall-coupon-form .coupon-options{display:flex;flex-direction:column;gap:12px}
+.mall-coupon-form .coupon-indent{margin:10px 0 0 20px}
+.mall-coupon-form .coupon-number{width:100px;min-height:36px}
+.mall-coupon-form .coupon-datetime{width:220px}
+.mall-coupon-form .coupon-name{position:relative;width:300px;max-width:100%}
+.mall-coupon-form .coupon-name input{padding-right:50px}
+.mall-coupon-form .coupon-name span,.mall-coupon-form .coupon-description span{position:absolute;right:10px;bottom:9px;color:#8b9aac;font-size:11px}
+.mall-coupon-form .coupon-description{position:relative;width:min(100%,500px)}
+.mall-coupon-form .coupon-description textarea{padding-bottom:30px;min-height:110px}
+.mall-coupon-form .coupon-checks{display:flex;gap:24px;flex-wrap:wrap;padding:8px 0}
+.mall-coupon-form .coupon-selected{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.mall-coupon-form .coupon-course-chip{display:inline-flex;gap:8px;align-items:center;padding:5px 8px;background:#edf3ff;border-radius:4px;color:#315deb}
+.mall-coupon-form .coupon-course-chip button{border:0;background:none;color:inherit;cursor:pointer}
+.mall-coupon-form .coupon-picker{width:min(900px,94vw)}
+.mall-coupon-form .coupon-picker .table-wrap{max-height:48vh;overflow:auto;margin-top:16px}
+.mall-coupon-form .coupon-picker .modal-actions span{margin-right:auto}
+.mall-coupon-form .coupon-footer{display:flex;justify-content:flex-end;gap:10px}
+.mall-coupon-form .coupon-error{color:#d75a46}
+.mall-coupon-form .input:disabled{background:#f4f6f9;color:#a5afbf}
+@media(max-width:700px){.mall-coupon-form .coupon-row{grid-template-columns:1fr;gap:6px}.mall-coupon-form .coupon-label{text-align:left}.mall-coupon-form .coupon-datetime{width:100%}.mall-coupon-form .card{padding:16px}}

@@ -1,5 +1,5 @@
 // 快捷入口沿用线索档案及教务报名流程，示例登记人固定为当前登录用户王敏。
-const shortcutUser='王敏';
+let shortcutUser='王敏';
 function shortcutOwnLead(lead){return !!lead&&lead.registrar===shortcutUser}
 const shortcutFilter={search:'',from:'',to:'',preset:'',stage:'',intent:''};
 function shortcutDate(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`}
@@ -26,8 +26,10 @@ saveLead=function(){
 };
 const shortcutPreviousLeadToEnrollment=leadToEnrollment;
 leadToEnrollment=function(){if(!leadRequireFollow())return;const lead=leadState.leads[leadState.selected];if(lead?.stage==='已报名')return shortcutPreviousLeadToEnrollment();if(lead&&!lead.leadId)lead.leadId=`LEAD-${Date.now()}`;a.enrollingLeadId=lead?.leadId||null;shortcutPreviousLeadToEnrollment()};
-const shortcutPreviousFinishEnroll=finishEnroll;
-finishEnroll=function(){const leadId=a.enrollingLeadId,course=a.classes[a.selectedClass]||a.classes[0];shortcutPreviousFinishEnroll();if(leadId&&course&&a.orders[0]){a.orders[0].originLeadId=leadId;a.orders[0].productCategory=course.productCategory||'正价课';const lead=leadState.leads.find(l=>l.leadId===leadId);if(lead){lead.stage='已报名';lead.status='mine';lead.history.push(leadHistoryEntry('报名完成',`已报名${course.course||course.name}。`,{},'今天'))}}a.enrollingLeadId=null};
+function shortcutConvertedLeadIds(){
+  const cents=value=>{const text=String(value??'').replace(/[¥￥,\s]/g,'');return /^\d+(\.\d{1,2})?$/.test(text)?Math.round(Number(text)*100):NaN};
+  return new Set(a.orders.filter(o=>o.productCategory==='正价课'&&o.originLeadId&&o.status==='交易成功'&&Number.isSafeInteger(cents(o.amount))&&Number.isSafeInteger(cents(o.paid))&&cents(o.paid)>=cents(o.amount)).map(o=>o.originLeadId));
+}
 function shortcutRender(){
   leadRefreshSchoolGrades();
   const page=state.page;
@@ -44,12 +46,12 @@ function shortcutRegisterPage(){
   const registered=leadState.leads.map((l,index)=>({...l,index})).filter(shortcutOwnLead);
   const today=shortcutDayOffset(0),ninetyDaysAgo=shortcutDayOffset(89);
   const valid=registered.filter(l=>shortcutMatchDate(l.createdAt,ninetyDaysAgo,today));
-  const enrolledLeadIds=new Set(a.orders.filter(o=>o.productCategory==='正价课'&&o.originLeadId).map(o=>o.originLeadId));
+  const enrolledLeadIds=shortcutConvertedLeadIds();
   const convertedCount=new Set(registered.filter(l=>enrolledLeadIds.has(l.leadId)).map(l=>`${l.name}|${l.contactPhone||l.phone}`)).size;
   const stats=[
     ['累计登记',registered.length,'该账号全部登记线索总计；转交后仍计入。'],
     ['有效线索',valid.length,'该账号近90天登记的全部线索总计（含今天）。'],
-    ['已转化',convertedCount,'该账号登记线索中，有过报名正价课行为的人数总计。']
+    ['已转化',convertedCount,'该账号登记线索中，正价课报名订单已缴清的人数；部分缴费可先入班，补齐后计入。']
   ];
   const rows=registered.map(l=>{const intent=shortcutIntent(l);return `<tr data-created="${esc(l.createdAt?.slice(0,10)||'')}" data-search="${esc([l.name,l.guardian,l.phone].join(' '))}" data-stage="${esc(l.stage)}" data-intent="${esc(intent)}"><td>${leadPerson(l)}</td><td>${esc(l.grade)}</td><td>${esc(l.subject)}</td><td>${esc(l.createdAt||'—')}</td><td>${esc(l.owner)}</td><td>${leadPill(l.stage)}</td><td><span class="shortcut-intent">${esc(intent)}</span></td><td>${esc(l.history.at(-1)?.[1]||'—')}</td><td><button class="btn small" onclick="leadDetail(${l.index},'quickRegister')">详情</button></td></tr>`});
   return heading('线索登记','查看本人录入的线索；分配、转化或归档后仍归入原登记人统计')+

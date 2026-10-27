@@ -1,3 +1,4 @@
+const enrollmentManualChannels=Object.freeze(['现金','POS刷卡']);
 function enrollmentCheckout(){
   const draft=a.enrollment;
   if(!draft.checkout)draft.checkout={mode:'手动录入',receipts:[{channel:'现金',amount:''}],note:'',couponOpen:false};
@@ -92,18 +93,18 @@ function enrollmentReceiptFields(){
   const checkout=enrollmentCheckout();
   if(checkout.mode!=='手动录入')return '<p class="checkout-payment-notice">商城支付尚未接入支付服务，提交后仅生成待付款订单。</p>';
   return `<div class="checkout-field"><label class="required">实收金额</label><div class="checkout-receipts">${checkout.receipts.map((receipt,index)=>`<div class="checkout-receipt-group"><div class="checkout-receipt">
-    ${enrollmentSelect(enrollmentReceiptId(index,'channel'),['现金','微信','支付宝','银行卡'],receipt.channel,'选择收款渠道')}
+    ${enrollmentSelect(enrollmentReceiptId(index,'channel'),enrollmentManualChannels,receipt.channel,'选择收款渠道')}
     <input class="input" id="${enrollmentReceiptId(index,'amount')}" type="number" min="0" step="0.01" value="${esc(receipt.amount)}" placeholder="请输入金额" aria-label="第${index+1}笔实收金额" oninput="enrollmentCheckout().receipts[${index}].amount=this.value">
     <button class="btn small" onclick="document.getElementById('pay-proof-${index}').click()">＋ 上传凭证（必填）</button><input id="pay-proof-${index}" type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx" multiple hidden onchange="enrollmentAddProofs(${index},this.files)">
     ${index===0?'<button class="checkout-link" onclick="enrollmentAddReceipt()">＋ 添加收款</button>':`<button class="btn small" onclick="enrollmentRemoveReceipt(${index})">移除收款</button>`}</div>
-    <div class="checkout-proofs">${(receipt.proofs||[]).map((proof,proofIndex)=>`<div class="checkout-proof">${enrollmentProofLink(proof)}<button class="checkout-link" aria-label="移除凭证${esc(proof.fileName)}" onclick="enrollmentRemoveProof(${index},${proofIndex})">移除</button></div>`).join('')}</div></div>`).join('')}<p class="help">每笔手动收款须上传凭证。支持图片、PDF、Word、Excel，每份不超过20 MB。凭证仅保留在当前原型页面会话中。</p></div></div>`;
+    <div class="checkout-proofs">${(receipt.proofs||[]).map((proof,proofIndex)=>`<div class="checkout-proof">${enrollmentProofLink(proof)}<button class="checkout-link" aria-label="移除凭证${esc(proof.fileName)}" onclick="enrollmentRemoveProof(${index},${proofIndex})">移除</button></div>`).join('')}</div></div>`).join('')}<p class="help">每笔手动收款须上传凭证。支持图片、PDF、Word、Excel，每份不超过20 MB。凭证随业务记录保存在本机浏览器中。</p></div></div>`;
 }
 enrollPayment=function(){
   const d=a.enrollment.data,checkout=enrollmentCheckout(),quote=enrollmentQuote(),operator=leadCurrentOperator();
   return `<div class="enrollment-checkout"><section><h2 class="section-title">订单确认</h2><p class="checkout-student">${esc(d.name)}　${esc(d.phone)}</p>`+
     aTable(['购买项目','原价金额（元）','应收金额（元）'],enrollmentSelectedClasses().map((item,index)=>{
       const price=enrollmentClassPrice(item);
-      return `<tr><td><strong>${esc(item.class?.name||'班级已移除')}</strong><div class="help">教辅费</div></td><td>${price?enrollmentMoney(price.totalCents):'—'}</td><td id="checkout-item-due-${index}">${quote.error?'—':enrollmentMoney(quote.items[index].dueCents)}</td></tr>`;
+      return `<tr><td><strong>${esc(item.class?.name||'班级已移除')}</strong></td><td>${price?enrollmentMoney(price.totalCents):'—'}</td><td id="checkout-item-due-${index}">${quote.error?'—':enrollmentMoney(quote.items[index].dueCents)}</td></tr>`;
     }))+`<p class="checkout-error" id="checkout-error" role="status" ${quote.error?'':'hidden'}>${esc(quote.error||'')}</p></section>
     <section><h2 class="section-title">费用结算</h2><div class="checkout-field"><label>原价合计</label><span id="checkout-original">${enrollmentMoney(enrollmentTotal())}元</span></div>
     <div class="checkout-field"><label>优惠券</label><div><button class="checkout-link" onclick="enrollmentToggleCoupon()">＋ 选择优惠券</button>${checkout.couponOpen?'<p class="help">学员优惠券核验服务待接入，暂无法选择优惠券。</p>':''}</div></div>
@@ -125,7 +126,7 @@ function enrollmentValidateCheckout(){
   if(checkout.mode==='手动录入'){
     for(const receipt of checkout.receipts){
       const amountCents=enrollmentAmountCents(receipt.amount);
-      if(!['现金','微信','支付宝','银行卡'].includes(receipt.channel)||amountCents===null){toast('请填写每笔收款的渠道和有效金额');return null}
+      if(!enrollmentManualChannels.includes(receipt.channel)||amountCents===null){toast('请填写每笔收款的渠道和有效金额');return null}
       if(!receipt.proofs?.length){toast('请为每笔手动收款上传凭证');return null}
       receipts.push({channel:receipt.channel,amountCents,proofs:receipt.proofs.map(proof=>({...proof}))});
     }

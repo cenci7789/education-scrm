@@ -61,8 +61,8 @@ function leadRenderForm(){
 function leadFillBasicInfo(){
   const lead=leadState.leads[leadState.selected];
   ['grade','source','guardian','campus'].forEach(key=>{
-    const select=$('#lead-'+key),value=lead[key]||'';
-    if(value&&select.options&&![...select.options].some(option=>option.value===value))select.insertAdjacentHTML('beforeend',`<option value="${esc(value)}">${esc(value)}</option>`);
+    const select=$('#lead-'+key),value=key==='grade'?(leadConfiguredGrade(lead.grade)||lead.grade||''):lead[key]||'';
+    if(value&&select.options&&![...select.options].some(option=>option.value===value))select.insertAdjacentHTML('beforeend',`<option value="${esc(value)}" ${key==='grade'?'disabled':''}>${esc(value)}${key==='grade'?'（历史年级）':''}</option>`);
     select.value=value;
   });
 }
@@ -107,8 +107,7 @@ function leadDetailPage(){
     <section class="lead-history-section"><div class="lead-history-heading"><h2>跟进记录</h2><span>${history.length} 条 · 从建档到最新 · 电话 / 企微 / 面谈等渠道汇入</span></div>
       <div class="lead-timeline">${history.map(([title,when,body,attachment],index)=>`<article class="lead-event ${index===history.length-1?'latest':''}"><h3>${esc(title)}<time>${esc(when)}</time>${leadHistoryOperatorHTML(attachment)}</h3><div class="body">${esc(body)}${leadCommunicationMetadataHTML(attachment)}${leadRecordFilesHTML(attachment)}</div></article>`).join('')||(registrationOnly?'<div class="empty">暂无跟进记录</div>':'<div class="empty">暂无跟进记录，可从下方上传记录。</div>')}</div>
     </section>
-    ${registrationOnly?'':`<section class="card lead-follow-card"><h2>跟进操作</h2><p>每次沟通后登记下一步：约定跟进或试听、去报名、转交同事、回公海或归档，保持线索记录完整。</p><div class="lead-operation"><button class="btn small" onclick="leadState.modal='follow';leadRender()">◷ 下次跟进</button><button class="btn small" onclick="leadOpenAction('trial')">▦ 约试听</button><button class="btn small lead-enroll-action" onclick="leadToEnrollment()">✓ 去报名</button><button class="btn small" onclick="leadOpenAction('colleague')">⇄ 转同事</button><button class="btn small" onclick="leadOpenAction('publicPool')">↩ 回公海</button><button class="btn small" onclick="leadState.modal='cold';leadRender()">▣ 冷宫池</button></div></section>
-    <footer class="lead-detail-dock" aria-label="线索沟通操作"><div class="lead-detail-dock-inner"><button class="btn small lead-call-action" onclick="leadStartCommunication('电话')">☎ 话务呼叫</button><button class="btn small" onclick="leadStartCommunication('企微')">☏ 企微沟通</button><button class="btn small lead-upload-action" onclick="leadOpenUpload()">↑ 上传记录</button></div></footer>`}
+    ${registrationOnly?'':leadFollowDock()}
   </div>`;
 }
 function leadSummaryInsight(lead){
@@ -162,39 +161,85 @@ function leadReturnPublicPool(){
 }
 function leadToEnrollment(){
   if(!leadRequireFollow())return;
-let l=leadState.leads[leadState.selected];if(l.stage==='已报名'){toast('该线索已转报名');return}state.academic.students.unshift({id:String(Date.now()).slice(-8),name:l.name,phone:l.phone,campus:l.campus,status:'潜在',follow:'待跟进',className:'—'});state.academic.selectedStudent=0;state.academic.enrollStep=1;l.history.push(leadHistoryEntry('发起报名',`由${l.owner}发起报名，待完成确认。`,{},'今天'));leadState.modal=null;nav('enroll');toast('已带入学生信息，请继续选择班级')}
-const leadGradeNames=['小一','小二','小三','小四','小五','小六','初一','初二','初三','高一','高二','高三'];
-function leadSchoolGrade(stage,entryYear,now=new Date()){
-  const start={小学:0,初中:6,高中:9}[stage];
-  if(start===undefined||!Number.isInteger(Number(entryYear)))return null;
+  const lead=leadState.leads[leadState.selected];
+  if(!lead)return;
+  if(lead.stage==='已报名'){toast('该线索已转报名，请从学生档案继续报名或续报');return}
+  enrollmentStartFromLead(lead);
+}
+const leadGradeNames=['小一','小二','小三','小四','小五','小六','初一','初二','初三','初四','高一','高二','高三'];
+// 内部登记使用年级名称；“对外展示内容”和是否对外展示不影响内部可选范围。
+function leadConfiguredGradeNames(){return [...new Set((state.config?.年级||[]).filter(row=>row[3]!==false).map(row=>row[0]).filter(Boolean))]}
+function leadGradeKey(value){
+  const text=String(value||'').trim(),digits={'一':'1','二':'2','三':'3','四':'4','五':'5','六':'6'};
+  const primary=text.match(/^(?:小学|小)?([一二三四五六1-6])(?:年级)?$/);
+  if(primary)return '小学'+(digits[primary[1]]||primary[1]);
+  const secondary=text.match(/^(初中|初|高中|高)([一二三四1-4])(?:年级)?$/);
+  return secondary?(secondary[1].startsWith('初')?'初中':'高中')+(digits[secondary[2]]||secondary[2]):text;
+}
+function leadConfiguredGrade(value){
+  if(!value)return '';
+  const rows=state.config?.年级||[],exact=rows.find(row=>row[0]===value);
+  if(exact)return exact[3]!==false?exact[0]:'';
+  const matches=leadConfiguredGradeNames().filter(name=>leadGradeKey(name)===leadGradeKey(value));
+  return matches.length===1?matches[0]:'';
+}
+function leadGradeSelect(){
+  const names=leadConfiguredGradeNames();
+  return aSelect('lead-grade',names,names.length?'请选择年级':'请先在教学配置中启用年级')+'<div class="help">选项来自教学配置中的已启用年级。</div>';
+}
+function leadSchoolOffsets(system='63'){return {小学:0,初中:system==='54'?5:6,高中:9}}
+function leadSchoolGrade(stage,entryYear,now=new Date(),system='63'){
+  const start=leadSchoolOffsets(system)[stage];
+  if(start===undefined||!entryYear||!Number.isInteger(Number(entryYear)))return null;
   const schoolYear=now.getFullYear()-(now.getMonth()<8?1:0);
   const index=start+schoolYear-Number(entryYear);
-  return index<0?'未入学':leadGradeNames[index]||'已毕业';
+  const grades=system==='54'?['小一','小二','小三','小四','小五','初一','初二','初三','初四','高一','高二','高三']:leadGradeNames.filter(x=>x!=='初四');
+  return index<0?'未入学':grades[index]||'已毕业';
 }
 function leadRefreshSchoolGrades(){
   leadState.leads.forEach(l=>{
     const school=l.schools?.find(x=>x.entryYear);
     if(!school)return;
-    const grade=leadSchoolGrade(school.stage,school.entryYear);
-    if(grade){l.grade=grade;l.currentSchoolStage=grade.startsWith('小')?'小学':grade.startsWith('初')?'初中':grade.startsWith('高')?'高中':grade;}
+    const grade=leadSchoolGrade(school.stage,school.entryYear,new Date(),l.schoolSystem);
+    if(grade){const configured=leadConfiguredGrade(grade);if(configured)l.grade=configured;l.currentSchoolStage=grade.startsWith('小')?'小学':grade.startsWith('初')?'初中':grade.startsWith('高')?'高中':grade;}
   });
 }
 function leadSchoolYearOptions(selected=''){
   const year=new Date().getFullYear();
-  return `<option value="">入学年份</option>`+Array.from({length:19},(_,i)=>year-i).map(y=>`<option value="${y}" ${Number(selected)===y?'selected':''}>${y}年9月</option>`).join('');
+  const years=[...new Set([...Array.from({length:31},(_,i)=>year+12-i),...(selected?[Number(selected)]:[])])].sort((a,b)=>b-a);
+  return `<option value="">入学年份</option>`+years.map(y=>`<option value="${y}" ${Number(selected)===y?'selected':''}>${y}年9月</option>`).join('');
 }
 function leadSchoolRow(school={},removable=false){
-  return `<div class="lead-school-row"><select class="select lead-school-stage" onchange="leadSyncGradeFromSchool()">${['小学','初中','高中'].map(x=>`<option ${school.stage===x?'selected':''}>${x}</option>`).join('')}</select><input class="input lead-school-name" placeholder="例如：城东实验小学" value="${esc(school.name||'')}"><select class="select lead-school-year" onchange="leadSyncGradeFromSchool()">${leadSchoolYearOptions(school.entryYear)}</select>${removable?`<button class="btn small" type="button" onclick="this.closest('.lead-school-row').remove();leadSyncGradeFromSchool()">移除</button>`:'<button class="btn small" type="button" onclick="leadAddSchool()">+ 添加</button>'}</div>`;
+  return `<div class="lead-school-row"><select class="select lead-school-stage" aria-label="学校学段" onchange="leadSchoolStageChanged(this)">${['小学','初中','高中'].map(x=>`<option ${school.stage===x?'selected':''}>${x}</option>`).join('')}</select><input class="input lead-school-name" aria-label="学校名称" placeholder="请输入学校名称" value="${esc(school.name||'')}"><select class="select lead-school-year" aria-label="入学年份" onchange="leadSyncSchoolYears(this.closest('.lead-school-row'))">${leadSchoolYearOptions(school.entryYear)}</select>${removable?`<button class="btn small" type="button" onclick="this.closest('.lead-school-row').remove();leadSyncGradeFromSchool()">移除</button>`:'<button class="btn small" type="button" onclick="leadAddSchool()">+ 添加</button>'}</div>`;
 }
 function leadAddSchool(){
-  document.querySelector('#lead-school-rows').insertAdjacentHTML('beforeend',leadSchoolRow({},true));
+  const used=[...document.querySelectorAll('.lead-school-stage')].map(el=>el.value),stage=['小学','初中','高中'].find(x=>!used.includes(x))||'小学';
+  document.querySelector('#lead-school-rows').insertAdjacentHTML('beforeend',leadSchoolRow({stage},true));
+  leadSyncSchoolYears();
+}
+function leadSchoolSystem(){return document.querySelector('input[name="lead-school-system"]:checked')?.value==='54'?'54':'63'}
+function leadSchoolStageChanged(select){
+  const row=select.closest('.lead-school-row'),other=[...document.querySelectorAll('.lead-school-row')].find(x=>x!==row&&x.querySelector('.lead-school-year').value);
+  leadSyncSchoolYears(other||row);
+}
+function leadSyncSchoolYears(anchor){
+  const rows=[...document.querySelectorAll('.lead-school-row')];
+  anchor=anchor||rows.find(row=>row.dataset.schoolAnchor==='true'&&row.querySelector('.lead-school-year').value)||rows.find(row=>row.querySelector('.lead-school-year').value);
+  if(anchor&&anchor.querySelector('.lead-school-year').value){
+    const offsets=leadSchoolOffsets(leadSchoolSystem()),base=Number(anchor.querySelector('.lead-school-year').value)-offsets[anchor.querySelector('.lead-school-stage').value];
+    rows.forEach(row=>{row.dataset.schoolAnchor=String(row===anchor);const year=base+offsets[row.querySelector('.lead-school-stage').value];row.querySelector('.lead-school-year').innerHTML=leadSchoolYearOptions(year)});
+  }
+  leadSyncGradeFromSchool();
 }
 function leadSyncGradeFromSchool(){
   const row=[...document.querySelectorAll('.lead-school-row')].find(x=>x.querySelector('.lead-school-year').value);
-  if(!row)return;
-  const grade=leadSchoolGrade(row.querySelector('.lead-school-stage').value,row.querySelector('.lead-school-year').value);
-  if(leadGradeNames.includes(grade))$('#lead-grade').value=grade;
-  $('#lead-school-grade-result').textContent=grade?`当前推算：${grade}。`:'';
+  if(!row){$('#lead-school-grade-result').textContent='';return}
+  const grade=leadSchoolGrade(row.querySelector('.lead-school-stage').value,row.querySelector('.lead-school-year').value,new Date(),leadSchoolSystem());
+  const configured=leadConfiguredGrade(grade);
+  const select=$('#lead-grade');
+  if(configured){select.value=configured;select.dataset.schoolGrade=configured}
+  else if(select.dataset.schoolGrade){if(select.value===select.dataset.schoolGrade)select.value='';delete select.dataset.schoolGrade}
+  $('#lead-school-grade-result').textContent=grade?`当前推算：${configured||grade}。${configured?'':'未匹配到已启用的年级，请手动选择或在教学配置中补充。'}`:'';
 }
 function leadEligibleStaff(){
   return (state.staff||[]).map((staff,index)=>({...staff,index})).filter(staff=>{
@@ -249,12 +294,12 @@ function leadFormContent(standalone=false){
   return `${standalone||edit?'':`<div class="lead-segments"><button class="active">单条登记</button><button onclick="leadOpenForm('create','import')">批量导入</button></div>`}${edit?'':'<div class="lead-tip">适用于主动来电、家长上门和转介绍等手动录入场景。扫码表单和活动报名的线索通常会自动入池。</div>'}<div class="lead-form-grid">
     ${aField('学生姓名',aInput('lead-name','例如：王小明','text',l?.name||''),true)}
     ${aField('联系电话',aInput('lead-phone','录入后自动脱敏显示','tel',l?.phone||''),true)}
-    ${aField('就读年级',aSelect('lead-grade',leadGradeNames,'请选择年级'))}
+    ${aField('就读年级',leadGradeSelect())}
     ${aField('来源渠道',aSelect('lead-source',['主动来电','家长上门','转介绍','地推扫码','公众号','活动报名','宣传物料扫码'],'请选择来源'))}
-    <div class="field full"><label>公立学校</label><div id="lead-school-rows">${schools.map((x,i)=>leadSchoolRow(x,i>0)).join('')}</div><p class="help"><span id="lead-school-grade-result"></span>入学年份对应所选学段；原型按每年9月、六三三学制自动升级年级和学段，具体规则待业务确认。</p></div>
+    <div class="field full"><div class="lead-school-heading"><span>公立学校</span><div class="lead-radio" role="radiogroup" aria-label="学制"><label><input type="radio" name="lead-school-system" value="63" ${l?.schoolSystem==='54'?'':'checked'} onchange="leadSyncSchoolYears()"> 六三制</label><label><input type="radio" name="lead-school-system" value="54" ${l?.schoolSystem==='54'?'checked':''} onchange="leadSyncSchoolYears()"> 五四制</label></div></div><div id="lead-school-rows">${schools.map((x,i)=>leadSchoolRow(x,i>0)).join('')}</div><p class="help"><span id="lead-school-grade-result"></span>填写任一学段的入学年份，其他学段自动推算；六三制为小学6年、初中3年，五四制为小学5年、初中4年，高中均为3年，每年9月升年级。</p></div>
     ${aField('学生性别',`<div class="lead-radio"><label><input type="radio" name="lead-gender" ${l?.gender==='女'?'':'checked'}> 男</label><label><input type="radio" name="lead-gender" ${l?.gender==='女'?'checked':''}> 女</label></div>`)}
     ${aField('咨询家长',aSelect('lead-guardian',['妈妈','爸爸','其他'],'请选择关系'))}
-    ${aField('意向校区',aSelect('lead-campus',['城东校区','滨江校区','园区校区'],'待定'),'','报名时再确认就读校区。')}
+    ${aField('意向校区',aSelect('lead-campus',state.campuses.filter(c=>c.active).map(c=>c.name),'待定'),'','报名时再确认就读校区。')}
     <div class="field full"><label>意向学科</label><div class="checkrow">${['语文','数学','英语','物理','化学'].map(x=>`<label><input type="checkbox" name="lead-subject" value="${x}" ${l?.subject?.includes(x)?'checked':''}> ${x}</label>`).join('')}</div></div>
     ${edit?'':`<div class="field full"><label>分配咨询</label><div class="lead-radio"><label><input type="radio" name="lead-assign" value="self" ${assign==='self'?'checked':''} onchange="leadToggleAssignment()"> 我自己</label><label><input type="radio" name="lead-assign" value="uniform" ${assign==='uniform'?'checked':''} onchange="leadToggleAssignment()"> 统一分配</label><label><input type="radio" name="lead-assign" value="specific" ${assign==='specific'?'checked':''} onchange="leadToggleAssignment()"> 指定招生岗（搜索选择）</label></div>
       <div id="lead-assignee-panel" class="lead-assignee-panel" ${assign==='specific'?'':'hidden'}>${leadAssignmentPicker()}</div>
@@ -270,9 +315,12 @@ function saveLead(){
   if(!name||!phone){toast('请填写学生姓名和联系电话');return}
   const schools=[...document.querySelectorAll('.lead-school-row')].map(row=>({stage:row.querySelector('.lead-school-stage').value,name:row.querySelector('.lead-school-name').value.trim(),entryYear:row.querySelector('.lead-school-year').value})).filter(x=>x.name||x.entryYear);
   const primary=schools.find(x=>x.entryYear);
-  const derived=primary?leadSchoolGrade(primary.stage,primary.entryYear):null;
-  const basic={name,phone,guardian:$('#lead-guardian').value||'妈妈',grade:derived&&leadGradeNames.includes(derived)?derived:$('#lead-grade').value||'未填',subject:[...document.querySelectorAll('input[name="lead-subject"]:checked')].map(x=>x.value).join('、')||'待定',source:$('#lead-source').value||'主动来电',campus:$('#lead-campus').value||'待定',gender:document.querySelectorAll('input[name="lead-gender"]')[1]?.checked?'女':'男',school:schools[0]?.name||'',schools};
+  const schoolSystem=leadSchoolSystem(),derived=primary?leadSchoolGrade(primary.stage,primary.entryYear,new Date(),schoolSystem):null;
+  const selectedGrade=$('#lead-grade').value,grade=leadConfiguredGrade(derived)||leadConfiguredGrade(selectedGrade);
+  if(selectedGrade&&!grade&&selectedGrade!==old?.grade){toast('所选年级未启用，请在教学配置中启用后重新选择');return}
+  const basic={name,phone,guardian:$('#lead-guardian').value||'妈妈',grade:grade||selectedGrade||'未填',subject:[...document.querySelectorAll('input[name="lead-subject"]:checked')].map(x=>x.value).join('、')||'待定',source:$('#lead-source').value||'主动来电',campus:$('#lead-campus').value||'待定',gender:document.querySelectorAll('input[name="lead-gender"]')[1]?.checked?'女':'男',school:schools[0]?.name||'',schools};
   if(primary&&derived)basic.currentSchoolStage=derived.startsWith('小')?'小学':derived.startsWith('初')?'初中':derived.startsWith('高')?'高中':derived;
+  basic.schoolSystem=schoolSystem;
   if(edit){
     // 保留负责人、流转状态与原记录，将本次补充内容追加到跟进记录。
     const communication=leadIsRegistrationDetail()?null:leadPrepareBasicCommunication();
@@ -284,7 +332,7 @@ function saveLead(){
     const assignees=assign==='specific'?leadAssignmentPeople():assign==='self'?[leadCurrentOperator()]:[];
     if(assign==='specific'&&(!assignees.length||assignees.length!==leadAssignmentIds().length)){toast('请选择在职且具有招生权限的同事');return}
     const owner=assign==='uniform'?'未分配':assignees.map(p=>p.name).join('、');
-    const record={...basic,createdAt:new Date().toISOString(),followupCycleAt:new Date().toISOString(),stage:'新线索',intent:'',next:'未约定',owner,status:assign==='uniform'?'new':owner==='王敏'?'mine':'assigned',note:$('#lead-note').value.trim(),history:[]};
+    const record={...basic,createdAt:new Date().toISOString(),followupCycleAt:new Date().toISOString(),stage:'新线索',intent:'',next:'未约定',owner,status:assign==='uniform'?'new':owner===leadCurrentOperator().name?'mine':'assigned',note:$('#lead-note').value.trim(),history:[]};
     leadSetOwners(record,assignees);
     leadCommitRegistrationRecord(record,leadRegistrationAssignment(assign,assignees));
     leadState.leads.unshift(record);
@@ -293,7 +341,7 @@ function saveLead(){
   const destination=edit?(leadState.formReturnPage||state.page):state.page==='leadForm'?leadState.formReturnPage:'myLeads';
   leadState.modal=null;leadNav(destination||'myLeads');toast(edit?'基本信息已修改':'线索已保存');
 }
-function leadModalPage(){if(leadState.modal==='communicationSession')return leadCommunicationSessionPage();if(['colleague','publicPool'].includes(leadState.modal))return leadActionModalPage();let m=leadState.modal,l=leadState.leads[leadState.selected],title='',content='';if(m==='form'){title=leadState.formMode==='edit'?'修改基本信息':'线索登记';content=leadFormContent()}else if(m==='import'){title='批量导入线索';content=`<p class="muted">下载 Excel 模板，按表头填写学生、家长、来源和分配信息，每行填写一名学生。</p><div class="empty"><a class="btn primary lead-import-download" href="templates/lead-import-template.xlsx" download="线索导入模板.xlsx">下载导入模板</a><p class="help">Excel（.xlsx） · 含空白填写表与字段说明</p></div><p class="help">当前可下载模板，文件上传导入功能待接入。</p><div class="modal-actions"><button class="btn" onclick="leadState.modal=null;leadRender()">关闭</button></div>`}else if(m==='upload'){title=['电话','企微'].includes(leadRecordDraft?.channel)?'完成沟通':'上传沟通记录';content=leadUploadRecordForm()}else if(m==='assign'){title='分配线索';content=`<p>${esc(l.name)} · ${l.grade} · ${l.subject}</p>${aField('招生人员',aSelect('assign-owner',['王敏','李强','陈静'],'请选择招生人员'),true)}<p class="help">重新分配时保留完整跟进档案。</p><div class="modal-actions"><button class="btn" onclick="leadState.modal=null;leadRender()">取消</button><button class="btn primary" onclick="assignLead()">确认分配</button></div>`}else if(m==='follow'||m==='record'){title=m==='follow'?'记录沟通与安排跟进':'完成沟通';content=leadFollowCommunicationForm()}else{title='移入冷宫池';content=`<p>将 ${esc(l.name)} 的线索归档后，仍可在冷宫池查看并重新激活。</p>${aField('关闭原因',aSelect('cold-reason',['已报名其他机构','价格超出预算','暂不需要','电话空号','其他'],'请选择原因'),true)}<div class="field" style="margin-top:18px"><label class="required" for="cold-detail">详情说明</label><textarea class="textarea" id="cold-detail" required aria-required="true" placeholder="请详细说明归档情况、家长反馈等"></textarea></div><div class="modal-actions"><button class="btn" onclick="leadState.modal=null;leadRender()">取消</button><button class="btn primary" onclick="archiveLead()">确认归档</button></div>`}return `<div class="modal-backdrop"><div class="modal lead-modal"><div class="modal-head"><h2>${title}</h2><button class="btn small" aria-label="关闭" onclick="${m==='upload'?'leadCloseUpload()':'leadState.modal=null;leadRender()'}">✕</button></div>${content}</div></div>`}
+function leadModalPage(){if(leadState.modal==='communicationChoice')return leadCommunicationChoicePage();if(leadState.modal==='communicationSession')return leadCommunicationSessionPage();if(['colleague','publicPool'].includes(leadState.modal))return leadActionModalPage();let m=leadState.modal,l=leadState.leads[leadState.selected],title='',content='';if(m==='form'){title=leadState.formMode==='edit'?'修改基本信息':'线索登记';content=leadFormContent()}else if(m==='import'){title='批量导入线索';content=`<p class="muted">下载 Excel 模板，按表头填写学生、家长、来源和分配信息，每行填写一名学生。</p><div class="empty"><a class="btn primary lead-import-download" href="templates/lead-import-template.xlsx" download="线索导入模板.xlsx">下载导入模板</a><p class="help">Excel（.xlsx） · 含空白填写表与字段说明</p></div><p class="help">当前可下载模板，文件上传导入功能待接入。</p><div class="modal-actions"><button class="btn" onclick="leadState.modal=null;leadRender()">关闭</button></div>`}else if(m==='upload'){title=leadRecordDraft?.completion||['电话','企微'].includes(leadRecordDraft?.channel)?'完成沟通':'上传沟通记录';content=leadUploadRecordForm()}else if(m==='assign'){title='分配线索';content=`<p>${esc(l.name)} · ${l.grade} · ${l.subject}</p>${aField('招生人员',aSelect('assign-owner',['王敏','李强','陈静'],'请选择招生人员'),true)}<p class="help">重新分配时保留完整跟进档案。</p><div class="modal-actions"><button class="btn" onclick="leadState.modal=null;leadRender()">取消</button><button class="btn primary" onclick="assignLead()">确认分配</button></div>`}else if(m==='follow'||m==='record'){title=m==='follow'?'记录沟通与安排跟进':'完成沟通';content=leadFollowCommunicationForm()}else{title='移入冷宫池';content=`<p>将 ${esc(l.name)} 的线索归档后，仍可在冷宫池查看并重新激活。</p>${aField('关闭原因',aSelect('cold-reason',['已报名其他机构','价格超出预算','暂不需要','电话空号','其他'],'请选择原因'),true)}<div class="field" style="margin-top:18px"><label class="required" for="cold-detail">详情说明</label><textarea class="textarea" id="cold-detail" required aria-required="true" placeholder="请详细说明归档情况、家长反馈等"></textarea></div><div class="modal-actions"><button class="btn" onclick="leadState.modal=null;leadRender()">取消</button><button class="btn primary" onclick="archiveLead()">确认归档</button></div>`}return `<div class="modal-backdrop"><div class="modal lead-modal"><div class="modal-head"><h2>${title}</h2><button class="btn small" aria-label="关闭" onclick="${m==='upload'?'leadCloseUpload()':'leadState.modal=null;leadRender()'}">✕</button></div>${content}</div></div>`}
 function assignLead(){
   if(!leadRequireFollow())return;
 let owner=$('#assign-owner').value;if(!owner){toast('请选择招生人员');return}let l=leadState.leads[leadState.selected];l.owner=owner;l.status=owner==='王敏'?'mine':'assigned';l.stage='新分配';leadResetFollowupCycle(l);l.history.push(leadHistoryEntry('分配',`线索分配给${owner}。`,{},'今天'));leadState.modal=null;leadRender();toast('线索已分配')}

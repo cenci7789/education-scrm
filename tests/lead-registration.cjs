@@ -24,7 +24,7 @@ context.URL={createObjectURL:()=>`blob:proof-${++proofSequence}`,revokeObjectURL
 const run = code => vm.runInContext(code, context);
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 run([...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]).join('\n'));
-for (const file of ['academic.js', 'leads.js', 'shortcuts.js', 'trials.js', 'permissions.js', 'lead-history.js', 'lead-communication.js', 'lead-records.js', 'enrollment.js', 'enrollment-classes.js', 'enrollment-payment.js', 'order-filters.js', 'trial-student.js', 'trial-classes.js', 'my-leads.js', 'lead-rules.js', 'lead-assignment.js', 'course-catalog.js', 'class-setup.js', 'class-schedule.js', 'class-details.js']) {
+for (const file of ['academic.js', 'leads.js', 'shortcuts.js', 'trials.js', 'permissions.js', 'lead-history.js', 'lead-communication.js', 'lead-records.js', 'enrollment.js', 'enrollment-classes.js', 'enrollment-payment.js', 'order-filters.js', 'trial-student.js', 'trial-classes.js', 'my-leads.js', 'lead-rules.js', 'lead-assignment.js', 'course-catalog.js', 'class-setup.js', 'class-schedule.js', 'class-details.js', 'student-terms.js', 'class-filters.js', 'student-profile.js', 'teaching-default-term.js', 'student-exams.js']) {
   run(fs.readFileSync(path.join(root, file), 'utf8'));
 }
 const page = () => node('#view').innerHTML;

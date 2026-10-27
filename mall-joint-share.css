@@ -1,0 +1,14 @@
+.mall-joint-share .joint-share-modal{width:min(760px,94vw);padding:0}
+.mall-joint-share .modal-head{margin:0;padding:20px 24px;border-bottom:1px solid #edf1f6}
+.mall-joint-share .modal-head h2{font-size:18px;font-weight:500}
+.mall-joint-share .joint-share-body{padding:24px 28px 16px}
+.mall-joint-share .joint-share-row{display:grid;grid-template-columns:70px minmax(0,1fr);gap:14px;margin-bottom:28px;align-items:start}
+.mall-joint-share .joint-share-row>label,.mall-joint-share .joint-share-row>span{padding-top:10px;color:#39485b}
+.mall-joint-share .joint-share-link{display:flex}
+.mall-joint-share .joint-share-link input{min-width:0;flex:1;border-radius:4px 0 0 4px;background:#f8fafc;color:#818a99;text-overflow:ellipsis}
+.mall-joint-share .joint-share-link button{border-radius:0 4px 4px 0;min-width:74px}
+.mall-joint-share .joint-share-qr{display:flex;align-items:flex-start;gap:18px}
+.mall-joint-share .joint-share-qr img{width:190px;height:190px;image-rendering:pixelated;border:1px solid #edf1f6;object-fit:contain}
+.mall-joint-share .joint-share-qr a{text-decoration:none;color:#39485b;font-weight:400}
+.mall-joint-share .joint-share-note{font-size:12px;color:#8b9aac;line-height:1.7;margin:0 0 0 84px}
+@media(max-width:550px){.mall-joint-share .joint-share-body{padding:16px}.mall-joint-share .joint-share-row{grid-template-columns:1fr;gap:8px}.mall-joint-share .joint-share-note{margin:0}}

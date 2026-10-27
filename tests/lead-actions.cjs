@@ -1,10 +1,10 @@
 const assert = require('node:assert/strict');
 const { run, node, page } = require('./lead-registration.cjs');
 run("permissionChangeIdentity('admin');leadDetail(0,'myLeads')");
-const actions = page().match(/<section class="card lead-follow-card">([\s\S]*?)<\/section>/)[1];
+const actions = page().match(/<footer class="lead-detail-dock"[^>]*>([\s\S]*?)<\/footer>/)[1];
 let previousPosition = -1;
-for (const label of ['下次跟进', '约试听', '去报名', '转同事', '回公海', '冷宫池']) {
-  const position = actions.indexOf(label, actions.indexOf('lead-operation'));
+for (const label of ['去沟通', '约试听', '去报名', '转同事', '回公海', '冷宫池']) {
+  const position = actions.indexOf(label);
   assert(position > previousPosition);
   previousPosition = position;
 }

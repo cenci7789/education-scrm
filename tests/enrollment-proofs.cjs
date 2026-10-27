@@ -2,8 +2,10 @@ const assert=require('node:assert/strict');
 const {run,node,page,context}=require('./lead-registration.cjs');
 let seq=0;const revoked=[];
 context.URL={createObjectURL:()=>`blob:receipt-${++seq}`,revokeObjectURL:url=>revoked.push(url)};
+let studentSequence=0;
 function open(){
   run("permissionChangeIdentity('admin');a.selectedStudent=null;state.page='quickEnroll';render();a.enrollment.data.name='凭证测试';a.enrollment.data.phone='13812345678';a.enrollment.data.grade='小二';a.enrollStep=2;enrollmentOpenClasses();enrollmentToggleClass(a.classes[0].id,true);enrollmentConfirmClasses();enrollmentClassesNext()");
+  run('a.enrollment.data.name += '+JSON.stringify(String(++studentSequence)));
   node('#pay-channel').value='现金';node('#pay-amount').value='1000';node('#pay-note').value='';
 }
 function add(index=0,name='收款凭证.png',type='image/png'){
@@ -24,7 +26,7 @@ run('enrollmentRemoveProof(0,0)');assert(revoked.includes('blob:receipt-1'));
 run('enrollmentRemoveProof(0,0)');before=snapshot();run('finishEnroll()');assert.equal(snapshot(),before);
 add();const first=run('enrollmentCheckout().receipts[0].proofs[0].url');
 node('#pay-amount').value='500';run('enrollmentAddReceipt()');
-node('#pay-channel-1').value='微信';node('#pay-amount-1').value='500';
+node('#pay-channel-1').value='POS刷卡';node('#pay-amount-1').value='500';
 before=snapshot();run('finishEnroll()');assert.equal(snapshot(),before,'every split receipt requires proof');
 add(1,'第二笔.docx','application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 const second=run('enrollmentCheckout().receipts[1].proofs[0].url');

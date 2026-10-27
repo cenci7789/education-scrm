@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 const {run,node,page,addPaymentProof}=require('./lead-registration.cjs');
 run("permissionChangeIdentity('admin');state.page='quickEnroll';a.selectedStudent=null;render();a.enrollment.data.name='商城支付测试';a.enrollment.data.phone='13912345678';a.enrollment.data.grade='小二';a.enrollStep=2;enrollmentOpenClasses();enrollmentToggleClass(a.classes[0].id,true);enrollmentConfirmClasses();enrollmentClassesNext()");
-node('#pay-channel').value='微信';node('#pay-amount').value='1000';
+node('#pay-channel').value='POS刷卡';node('#pay-amount').value='1000';
 node('#pay-note').value='保留备注';
 const before=run('JSON.stringify(a.orders)');
 function assertOptions(){

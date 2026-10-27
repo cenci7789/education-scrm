@@ -23,7 +23,7 @@ function enrollmentSyncSubjects(){
 }
 function enrollmentOpenClasses(){
   const draft=enrollmentEnsure();
-  draft.classPicker={ids:(draft.classes||[]).map(x=>x.classId),filters:{grade:draft.data.grade||''}};
+  draft.classPicker={ids:(draft.classes||[]).map(x=>x.classId),filters:draft.renewalFrom?{subject:draft.renewalFrom.subject}:{grade:draft.data.grade||''}};
   a.modal=null;academicRender();
 }
 function enrollmentCancelClasses(){a.enrollment.classPicker=null;academicRender()}
@@ -84,7 +84,7 @@ function enrollmentClassPrice(item){
   if(!c)return null;
   const course=a.courses.find(course=>course.name===c.course);
   if(!course||course.fee===null||course.fee===undefined||course.fee==='')return null;
-  const sessions=Number(Array.isArray(course.sessions)?course.sessions.length:course.totalSessions||0),tuition=Number(course.fee),materials=Number(course.materialFee??0);
+  const sessions=Number(Array.isArray(course.sessions)?course.sessions.length:course.totalSessions||0),tuition=Number(course.fee),materials=0;
   const start=Number(item.startSession);
   if(!Number.isInteger(sessions)||sessions<1||!Number.isInteger(start)||start<1||start>sessions||!Number.isFinite(tuition)||tuition<0||!Number.isFinite(materials)||materials<0)return null;
   const fullCents=Math.round(tuition*100),materialCents=Math.round(materials*100),tuitionCents=Math.round(fullCents*(sessions-start+1)/sessions);
@@ -107,8 +107,8 @@ enrollClass=function(){
   return `<div class="toolbar"><h2 class="section-title">已选班级</h2></div>`+
     (items.length?`<div class="table-wrap"><table class="table enrollment-selected-table"><thead><tr>${['操作 / 签约类型','项目名称','全价（元）','进班首讲','退费说明','原价金额（元）'].map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${items.map((item,index)=>{
       const c=item.class,p=enrollmentClassPrice(item);if(!c||!p)return `<tr><td><button class="btn small" onclick="enrollmentRemoveClass(${index})">移除</button></td><td colspan="5">班级不存在或收费配置有误，请重新选择。</td></tr>`;
-      return `<tr><td rowspan="2"><div class="enrollment-item-actions"><button class="btn small" aria-label="移除${esc(c.name)}" onclick="enrollmentRemoveClass(${index})">移除</button><select class="select" aria-label="${esc(c.name)}签约类型" onchange="enrollmentChangeClass(${index},'signupType',this.value)">${['新签','续费'].map(x=>`<option ${item.signupType===x?'selected':''}>${x}</option>`).join('')}</select></div></td><td><strong>${esc(c.name)}</strong><div class="help">${esc(c.campus)} · ${esc(c.teacher)}</div></td><td>${enrollmentMoney(p.fullCents)}</td><td><select class="select" aria-label="${esc(c.name)}进班首讲" onchange="enrollmentChangeClass(${index},'startSession',this.value)">${Array.from({length:p.sessions},(_,i)=>`<option value="${i+1}" ${item.startSession===i+1?'selected':''}>第${i+1}讲</option>`).join('')}</select></td><td>根据未上讲次退费</td><td rowspan="2">${enrollmentMoney(p.totalCents)}</td></tr><tr><td>教辅</td><td>${enrollmentMoney(p.materialCents)}</td><td>—</td><td>报名后不退</td></tr>`;
-    }).join('')}</tbody></table></div><div class="enrollment-total">合计：<strong>¥${enrollmentMoney(enrollmentTotal())}</strong></div><p class="help">课程费按进班首讲起的剩余讲次计算，教辅费另计。</p>`:'<div class="empty">尚未选择报名班级</div>')+
+      return `<tr><td><div class="enrollment-item-actions"><button class="btn small" aria-label="移除${esc(c.name)}" onclick="enrollmentRemoveClass(${index})">移除</button><select class="select" aria-label="${esc(c.name)}签约类型" onchange="enrollmentChangeClass(${index},'signupType',this.value)">${['新签','续费'].map(x=>`<option ${item.signupType===x?'selected':''}>${x}</option>`).join('')}</select></div>${typeof enrollmentRenewalField==='function'?enrollmentRenewalField(item,index):''}</td><td><strong>${esc(c.name)}</strong><div class="help">${esc(c.campus)} · ${esc(c.teacher)}</div></td><td>${enrollmentMoney(p.fullCents)}</td><td><select class="select" aria-label="${esc(c.name)}进班首讲" onchange="enrollmentChangeClass(${index},'startSession',this.value)">${Array.from({length:p.sessions},(_,i)=>`<option value="${i+1}" ${item.startSession===i+1?'selected':''}>第${i+1}讲</option>`).join('')}</select></td><td>根据未上讲次退费</td><td>${enrollmentMoney(p.totalCents)}</td></tr>`;
+    }).join('')}</tbody></table></div><div class="enrollment-total">合计：<strong>¥${enrollmentMoney(enrollmentTotal())}</strong></div><p class="help">课程费按进班首讲起的剩余讲次计算。</p>`:'<div class="empty">尚未选择报名班级</div>')+
     `<div class="form-actions"><button class="btn" onclick="a.enrollStep=1;academicRender()">上一步</button><button class="btn primary" onclick="enrollmentClassesNext()">下一步</button></div>`;
 };
 function enrollmentValidClasses(){
@@ -121,20 +121,30 @@ function enrollmentClassesNext(){if(!enrollmentValidClasses())return;enrollmentS
 enrollPayment=function(){
   const d=a.enrollment.data;
   return `<h2 class="section-title">订单确认</h2><p>${esc(d.name)}　${esc(d.grade)} · ${esc(d.subjects.join('、'))}</p>`+
-    aTable(['报名班级','签约类型','进班首讲','课程费（元）','教辅费（元）','应收金额（元）'],enrollmentSelectedClasses().map(item=>{
-      const p=enrollmentClassPrice(item);return p?`<tr><td>${esc(item.class.name)}</td><td>${esc(item.signupType)}</td><td>第${item.startSession}讲</td><td>${enrollmentMoney(p.tuitionCents)}</td><td>${enrollmentMoney(p.materialCents)}</td><td>${enrollmentMoney(p.totalCents)}</td></tr>`:'';
-    }))+`<div class="enrollment-total">应收合计：<strong>¥${enrollmentMoney(enrollmentTotal())}</strong></div><h2 class="section-title">收款</h2><div class="form-grid">${aField('支付方式',aSelect('pay-channel',['现金','微信','支付宝','银行卡'],'请选择支付方式'),true)}${aField('实收金额',aInput('pay-amount','请输入金额','number'),true)}</div><div class="form-actions"><button class="btn" onclick="a.enrollStep=2;academicRender()">上一步</button><button class="btn primary" onclick="finishEnroll()">确认报名</button></div>`;
+    aTable(['报名班级','签约类型','进班首讲','课程费（元）','应收金额（元）'],enrollmentSelectedClasses().map(item=>{
+      const p=enrollmentClassPrice(item);return p?`<tr><td>${esc(item.class.name)}</td><td>${esc(item.signupType)}</td><td>第${item.startSession}讲</td><td>${enrollmentMoney(p.tuitionCents)}</td><td>${enrollmentMoney(p.totalCents)}</td></tr>`:'';
+    }))+`<div class="enrollment-total">应收合计：<strong>¥${enrollmentMoney(enrollmentTotal())}</strong></div><h2 class="section-title">收款</h2><div class="form-grid">${aField('支付方式',aSelect('pay-channel',['现金','POS刷卡'],'请选择支付方式'),true)}${aField('实收金额',aInput('pay-amount','请输入金额','number'),true)}</div><div class="form-actions"><button class="btn" onclick="a.enrollStep=2;academicRender()">上一步</button><button class="btn primary" onclick="finishEnroll()">确认报名</button></div>`;
 };
 function enrollmentCompleteOrder(student,payment){
-  const selected=enrollmentSelectedClasses(),leadId=a.enrollingLeadId,total=enrollmentTotal();
+  const selected=enrollmentSelectedClasses(),leadId=a.enrollingLeadId,total=enrollmentTotal(),orderId='COMB'+Date.now()+'-'+Math.random().toString(36).slice(2,10);
+  student.firstEnrolledAt??=new Date().toISOString();
+  if(leadId)student.originLeadId??=leadId;
   const items=selected.map((item,index)=>{
     const p=enrollmentClassPrice(item),info=enrollmentClassInfo(item.class);
-    return {classId:item.classId,className:item.class.name,course:item.class.course,enrollmentStatus:'上课中',campus:item.class.campus,term:info.term,grade:info.grade,subject:info.subject,format:info.format,signupType:item.signupType,startSession:item.startSession,tuitionCents:p.tuitionCents,materialCents:p.materialCents,totalCents:p.totalCents,discount:{...payment.items[index].discount},discountCents:payment.items[index].discountCents,dueCents:payment.items[index].dueCents};
+    return {classId:item.classId,className:item.class.name,teacher:item.class.teacher||'',teacherId:item.class.teacherId||'',teacherAccount:item.class.teacherAccount||'',course:item.class.course,enrollmentStatus:'上课中',campus:item.class.campus,academicTerm:studentClassTerm(item.class),term:info.term,grade:info.grade,subject:info.subject,format:info.format,signupType:item.signupType,startSession:item.startSession,tuitionCents:p.tuitionCents,materialCents:p.materialCents,totalCents:p.totalCents,discount:{...payment.items[index].discount},discountCents:payment.items[index].discountCents,dueCents:payment.items[index].dueCents};
   });
+  // 保留报名时总讲次，后续修改课程配置不会改变这笔报名的课单价。
+  items.forEach((item,index)=>{item.orderId=orderId;item.sessionCount=enrollmentClassPrice(selected[index]).sessions;item.academicTeacherId=selected[index].class.academicTeacherId||'';item.academicTeacher=selected[index].class.academicTeacher||''});
+  items.forEach((item,index)=>{const source=a.enrollment?.renewalFrom||selected[index].renewalFrom;if(item.signupType==='续费'&&source)item.renewalFrom={...source}});
+  // 部分付款按选班顺序分配，保存到每个班级，供补费和退费追溯。
+  let unallocated=payment.paidCents;
+  items.forEach(item=>{item.dueTuitionCents=item.dueCents;item.dueMaterialCents=0;item.paidCents=Math.min(item.dueCents,unallocated);item.paidTuitionCents=item.paidCents;item.paidMaterialCents=0;unallocated-=item.paidCents});
   const previousClasses=student.classNames||(student.className&&student.className!=='—'?[student.className]:[]);
   student.classNames=[...new Set([...previousClasses,...items.map(item=>item.className)])];student.className=student.classNames.join('、');
   student.enrollments=[...(student.enrollments||[]),...items];
-  a.orders.unshift({id:'COMB'+Date.now(),createdAt:new Date().toISOString(),product:items.map(item=>item.className).join('、'),student:student.name,studentId:student.id,studentPhone:student.phone,items,originalAmount:'¥'+enrollmentMoney(total),discountCents:payment.discountCents,amount:'¥'+enrollmentMoney(payment.dueCents),paid:'¥'+enrollmentMoney(payment.paidCents),status:payment.paidCents>=payment.dueCents?'交易成功':'等待付款',originLeadId:leadId||undefined,productCategory:'正价课',payMode:payment.mode,payChannel:payment.receipts.map(x=>x.channel).join('、'),receipts:payment.receipts,operator:payment.operator,note:payment.note});
+  student.status='在读';
+  selected.forEach(item=>{item.class.students=(Number(item.class.students)||0)+1});
+  a.orders.unshift({id:orderId,createdAt:new Date().toISOString(),product:items.map(item=>item.className).join('、'),student:student.name,studentId:student.id,studentPhone:student.phone,items,originalAmount:'¥'+enrollmentMoney(total),discountCents:payment.discountCents,amount:'¥'+enrollmentMoney(payment.dueCents),paid:'¥'+enrollmentMoney(payment.paidCents),status:payment.paidCents>=payment.dueCents?'交易成功':'等待付款',originLeadId:leadId||undefined,productCategory:'正价课',payMode:payment.mode,payChannel:payment.receipts.map(x=>x.channel).join('、'),receipts:payment.receipts,operator:payment.operator,note:payment.note});
   const lead=leadState.leads.find(l=>l.leadId===leadId);
   if(lead){lead.studentId=student.id;lead.stage='已报名';lead.status='mine';lead.history.push(leadHistoryEntry('报名完成','已报名'+items.map(item=>item.className).join('、')+'。'))}
   enrollmentDisposeProofs(payment.receipts.flatMap(receipt=>(receipt.proofs||[]).map(proof=>proof.url)));

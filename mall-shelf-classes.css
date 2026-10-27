@@ -1,0 +1,18 @@
+.mall-shelf-page .shelf-filters{display:flex;gap:10px;flex-wrap:wrap}
+.mall-shelf-page .shelf-filters .input{width:220px}
+.mall-shelf-page .shelf-filters .select{width:160px}
+.mall-shelf-page input[type=checkbox]{accent-color:#315deb;width:15px;height:15px}
+.mall-shelf-page .shelf-class-count{display:block;margin-top:6px;font-size:12px;color:#8998ae}
+.mall-shelf-page .shelf-confirm-modal{width:min(620px,94vw)}
+.mall-shelf-page .shelf-confirm-items{max-height:45vh;overflow:auto}
+.mall-shelf-page .shelf-confirm-items ul{padding-left:22px;margin-bottom:0;line-height:1.9}
+.mall-shelf-page .shelf-class-modal{width:min(1120px,94vw);max-width:1120px;max-height:90vh;overflow:auto}
+.mall-shelf-page .shelf-class-modal h2{font-size:18px;margin:0}
+.mall-shelf-page .shelf-class-filters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:18px 0}
+.mall-shelf-page .shelf-class-filters label{display:grid;gap:7px;font-size:12px;color:#76869e}
+.mall-shelf-page .shelf-class-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.mall-shelf-page .shelf-class-summary{padding:10px 0;font-size:13px}
+.mall-shelf-page .shelf-class-modal .table-wrap{max-height:340px;overflow:auto}
+.mall-shelf-page .shelf-tags{display:flex;gap:5px;flex-wrap:wrap;max-width:270px}
+.mall-shelf-page .shelf-tags span{padding:3px 6px;border-radius:4px;background:#f1f5ff;color:#5975af;font-size:11px;white-space:nowrap}
+@media(max-width:900px){.mall-shelf-page .shelf-class-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}

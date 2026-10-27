@@ -1,0 +1,61 @@
+.mall-joint-form .card{padding:28px 24px}
+.mall-joint-form .joint-row{display:grid;grid-template-columns:100px minmax(0,1fr);gap:12px;align-items:start;margin:26px 0}
+.mall-joint-form .joint-label{text-align:right;padding-top:10px;font-size:13px;color:#526681}
+.mall-joint-form .joint-control{min-width:0}
+.mall-joint-form .joint-inline{display:flex;gap:12px;align-items:center;flex-wrap:wrap;min-height:38px}
+.mall-joint-form .joint-inline .muted,.mall-joint-form .joint-product-footer .muted{font-size:12px}
+.mall-joint-form .joint-inline input[type=datetime-local]{width:230px}
+.mall-joint-form .joint-name{position:relative;max-width:360px}
+.mall-joint-form .joint-name input{padding-right:54px}
+.mall-joint-form .joint-name span{position:absolute;right:10px;top:13px;color:#8b9aac;font-size:11px}
+.mall-joint-form .joint-rule-scroll{overflow:auto}
+.mall-joint-form .joint-rule-table{width:100%;min-width:600px;border:1px solid #e7edf5;border-collapse:collapse;font-size:12px}
+.mall-joint-form .joint-rule-table th{background:#f8fafc;color:#8796aa;text-align:left;font-weight:400;padding:14px 18px}
+.mall-joint-form .joint-rule-table td{padding:8px 18px;border-top:1px solid #e7edf5}
+.mall-joint-form .joint-rule-table tbody tr:nth-child(even){background:#f5f8fb}
+.mall-joint-form .joint-rule-table th:first-child{width:25%}
+.mall-joint-form .joint-rule-table th:last-child,.mall-joint-form .joint-rule-table td:last-child{text-align:right;width:80px}
+.mall-joint-form .joint-rule-count,.mall-joint-form .joint-rule-discount{display:flex;align-items:center;gap:12px;white-space:nowrap}
+.mall-joint-form .joint-rule-count .select{width:90px;min-height:30px;padding:4px 8px}
+.mall-joint-form .joint-rule-discount .select{width:178px;min-height:30px;padding:4px 8px}
+.mall-joint-form .joint-rule-discount .input{width:92px;min-height:30px;padding:4px 8px}
+.mall-joint-form .joint-rule-add{margin-top:10px}
+.mall-joint-form .joint-rule-preview{padding:4px 0;white-space:nowrap;color:#6884b1}
+.mall-joint-form .joint-participants{display:flex;gap:24px;align-items:center;flex-wrap:wrap;padding-top:9px}
+.mall-joint-form .joint-participants label{display:flex;align-items:center;gap:6px}
+.mall-joint-form .joint-participant-all{padding-right:22px;border-right:1px solid #e7edf5}
+.mall-joint-form .joint-coupon-option{display:flex;align-items:center;gap:8px;padding-top:9px}
+.mall-joint-form .joint-text-button:disabled{opacity:.4;cursor:default}
+.mall-joint-form .joint-product-footer{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.mall-joint-form .joint-text-button{border:0;background:none;padding:0;color:#315deb;cursor:pointer;font-size:13px}
+.mall-joint-form .table{min-width:1060px;font-size:12px;border:1px solid #e7edf5}
+.mall-joint-form .table td,.mall-joint-form .table th{padding:14px 12px}
+.mall-joint-form .joint-empty{padding:24px;text-align:center;color:#8b9aac;border:1px solid #e7edf5;border-top:0;font-size:12px}
+.mall-joint-form .joint-class-name{display:block;color:#8b9aac;margin-top:5px}
+.mall-joint-form .joint-price{width:112px;min-height:34px;padding:6px 8px}
+.mall-joint-form .joint-tags{display:flex;gap:4px;flex-wrap:wrap;min-width:100px;max-width:190px}
+.mall-joint-form .joint-tags span{font-size:11px;color:#6884b1;background:#f3f6fd;border-radius:3px;padding:3px 5px}
+.mall-joint-form .joint-error{display:block;color:#d75a46;margin-top:6px}
+.mall-joint-form .joint-ineligible{color:#8b9aac;background:#fafbfc}
+.mall-joint-form .joint-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:32px}
+.mall-joint-form .joint-review{color:#506580;padding-bottom:12px}
+.mall-joint-form .joint-picker{width:min(1440px,96vw);padding:0}
+.mall-joint-form .joint-picker>.modal-head{padding:20px;margin:0;border-bottom:1px solid #e7edf5}
+.mall-joint-form .joint-picker-layout{display:grid;grid-template-columns:160px minmax(0,1fr)}
+.mall-joint-form .joint-picker-layout aside{padding:22px 14px;background:#edf4ff;color:#59759b;border-right:1px solid #e7edf5}
+.mall-joint-form .joint-picker-layout main{padding:18px;min-width:0}
+.mall-joint-form .joint-picker-filters{display:flex;gap:12px;align-items:center}
+.mall-joint-form .joint-picker-filters .input{width:220px}
+.mall-joint-form .joint-picker-filters .select{width:130px}
+.mall-joint-form .joint-course-check{display:flex;gap:10px;align-items:center;min-width:180px}
+.mall-joint-form .joint-course-check input{accent-color:#315deb;flex-shrink:0}
+.mall-joint-form .joint-picker .table{min-width:1200px}
+.mall-joint-form .joint-pagination{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:16px}
+.mall-joint-form .joint-picker-footer{padding:18px;border-top:1px solid #e7edf5;margin:0;justify-content:flex-end}
+.mall-joint-form .joint-picker-footer>span{margin-right:auto}
+.mall-joint-form .joint-detail-heading{display:flex;gap:16px;align-items:center;margin:16px 0}
+@media(max-width:700px){.mall-joint-form .joint-picker-layout{grid-template-columns:1fr}.mall-joint-form .joint-picker-layout aside{padding:12px}.mall-joint-form .joint-picker-filters{flex-wrap:wrap}}
+.mall-joint-form .joint-picker .table-wrap{max-height:48vh;overflow:auto;margin-top:16px}
+.mall-joint-form .joint-picker .table{min-width:850px}
+.mall-joint-form .checkrow{margin:9px 0}
+@media(max-width:700px){.mall-joint-form .joint-row{grid-template-columns:1fr;gap:8px}.mall-joint-form .joint-label{text-align:left}.mall-joint-form .joint-inline input[type=datetime-local]{width:100%}}

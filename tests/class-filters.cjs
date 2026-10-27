@@ -1,0 +1,31 @@
+const assert=require('node:assert/strict');
+const {run,node,page}=require('./lead-registration.cjs');
+run(`permissionChangeIdentity('admin');
+a.courses.push({name:'秋季直播语文',year:'2027',term:'秋季',grade:'小二',subject:'语文',teachingFormat:'直播'});
+a.classes.push({id:'live-class',name:'周末直播A班',course:'秋季直播语文',campus:'新测试校区',teacher:'授课甲',academicTeacher:'教务乙',status:'未开课',date:'2027-09-01',time:'08:00–10:00',students:8,capacity:20});
+nav('classes')`);
+for(const key of ['term','course','grade','subject','campus','teacher','status','format','search'])assert(page().includes(`id="class-management-${key}"`));
+assert(page().includes('2027年秋季'));assert(page().includes('新测试校区'));assert(page().includes('教务乙'));assert(page().includes('直播课'));
+const ids=()=>JSON.parse(run('JSON.stringify(classManagementFiltered().map(c=>c.id))'));
+for(const [key,value] of [['term','2027-秋季'],['course','秋季直播语文'],['grade','2'],['subject','语文'],['campus','新测试校区'],['teacher','教务乙'],['status','未开课'],['format','直播'],['search','  直播a  ']]){
+  run(`classManagementSetFilter('${key}','${value}')`);assert.deepEqual(ids(),['live-class']);
+}
+const results=node('#class-management-results').innerHTML;
+assert(results.includes('classOpenDetail(3)'));assert(results.includes("a.selectedClass=3;nav('classForm')"));
+assert(results.includes('共 1 条班级'));assert(results.includes('在班合计 8 人次'));
+run("classManagementSetFilter('teacher','授课甲')");assert.deepEqual(ids(),['live-class']);
+run("classManagementSetFilter('subject','数学')");assert.deepEqual(ids(),[]);
+assert(node('#class-management-results').innerHTML.includes('暂无符合条件的班级'));
+run('classManagementResetFilters()');assert.equal(ids().length,4);assert.equal(run('classManagementFilters().search'),'');
+run("classManagementSetFilter('grade','2')");assert.equal(ids().length,2,'grade aliases are matched consistently');
+run("classManagementSetFilter('format','直播');classOpenDetail(3)");assert.equal(run('classDetailCurrent().id'),'live-class');
+run("nav('classes')");assert.deepEqual(ids(),['live-class']);assert(page().includes('value="直播" selected'));
+run('classManagementResetFilters()');
+run("classManagementSetFilter('search','秋季直播语文')");assert.deepEqual(ids(),[],'search matches class names, course has its own filter');
+run("classManagementResetFilters();a.classes[3].name='<img src=x onerror=alert(1)>';academicRender()");
+assert(page().includes('&lt;img'));assert(!page().includes('<img src=x'));
+run("a.classes[3].name='周末直播A班';trialState.requests.push({id:999,classId:'live-class',studentId:a.students[0].id,name:'筛选试听',course:'秋季直播语文',status:'已排班',scheduledTime:'2027-09-01T08:00',teacher:'授课甲',room:'教室01',phone:'13812345678'});academicRender()");
+assert(page().includes('筛选试听'));
+run("classManagementSetFilter('format','面授')");assert(!node('#class-management-trials').innerHTML.includes('筛选试听'));
+run('classManagementResetFilters()');assert(page().includes('筛选试听'));
+console.log('PASS: nine combined class filters, metadata options, both teacher roles, grade aliases, class-name search, reset/counts, stable detail/edit indices and scoped trial roster.');

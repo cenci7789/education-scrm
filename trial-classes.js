@@ -1,5 +1,5 @@
 function trialAvailableClass(c){
-  return ['未开课','开课中'].includes(c.status)&&a.courses.some(x=>x.active&&x.name===c.course)&&state.campuses.some(x=>x.active&&x.name===c.campus);
+  return ['未开课','开课中'].includes(classScheduleStatus(c))&&a.courses.some(x=>x.active&&x.name===c.course)&&state.campuses.some(x=>x.active&&x.name===c.campus);
 }
 function trialCaptureIntention(){
   const d=trialState.draft,note=$('#trial-note');
@@ -17,7 +17,8 @@ function trialFilteredClasses(){
   const f=trialClassFilters(),now=Date.now();
   return a.classes.filter(trialAvailableClass).map(c=>({...enrollmentClassInfo(c),nextSession:trialUpcomingSessions(c,now).find(s=>!s.cancelled)})).filter(c=>
     ['grade','subject','classType','campus','term','teacher','format'].every(key=>!f[key]||(key==='grade'?enrollmentGradeKey(c[key])===enrollmentGradeKey(f[key]):c[key]===f[key]))&&
-    (!f.time||c.nextSession&&enrollmentTimeBand(trialSessionDisplay(c.nextSession).startTime)===f.time)&&(!f.search||c.name.toLowerCase().includes(f.search.trim().toLowerCase())));
+    (!f.time||c.nextSession&&enrollmentTimeBand(trialSessionDisplay(c.nextSession).startTime)===f.time)&&(!f.search||c.name.toLowerCase().includes(f.search.trim().toLowerCase())))
+    .sort((left,right)=>(left.nextSession?new Date(left.nextSession.startsAt).getTime():Infinity)-(right.nextSession?new Date(right.nextSession.startsAt).getTime():Infinity));
 }
 function trialClassFilterFields(){
   const f=trialClassFilters(),classes=a.classes.filter(trialAvailableClass).map(enrollmentClassInfo);
@@ -91,7 +92,8 @@ function trialClassSessions(c){
     const at=row.startsAt||(row.date&&start?`${row.date}T${start[1].padStart(2,'0')}:${start[2]}`:'');
     const id=String(row.id||`${c.id}:${row.session||index+1}:${at}`);
     if(seen.has(id))return [];seen.add(id);
-    return [{id,name:row.name||row.session||`第${index+1}讲`,startsAt:at,endsAt:row.endsAt||'',time:row.time||'',teacher:row.teacher||c.teacher,room:row.room||c.room,cancelled:row.cancelled===true||row.status==='已取消'}];
+    const number=Number(row.number)||Number(String(row.session||row.name||'').match(/^第\s*(\d+)\s*讲/)?.[1])||index+1;
+    return [{id,number,name:row.name||row.session||`第${number}讲`,startsAt:at,endsAt:row.endsAt||'',time:row.time||'',teacher:row.teacher||c.teacher,room:row.room||c.room,cancelled:row.cancelled===true||row.status==='已取消'}];
   }).sort((x,y)=>x.startsAt.localeCompare(y.startsAt));
 }
 function trialOpenSessions(id){
@@ -123,6 +125,10 @@ function trialSessionDisplay(session){
 function trialSessionDateHtml(display){
   return `<span class="trial-session-date">${esc(display.dateText)}<span class="trial-session-weekday">（${esc(display.weekday)}）</span></span>`;
 }
+function trialSessionNameHTML(session){
+  const name=session.name||'',number=session.number;
+  return number&&!/^第\s*\d+\s*讲(?:\s|[：:、.．-]|$)/.test(name)?`<span class="help" style="margin-right:8px">第${number}讲</span>${esc(name)}`:esc(name);
+}
 function trialSessionModal(){
   const picker=trialState.draft.sessionPicker,c=a.classes.find(c=>c.id===picker.classId);
   if(!c)return '';
@@ -130,7 +136,7 @@ function trialSessionModal(){
   return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="trial-session-title"><div class="modal-head"><h2 id="trial-session-title">选择课节</h2><button class="btn small" aria-label="关闭" onclick="trialCloseSessions()">×</button></div><p>${esc(c.name)}</p>
     ${aTable(['选择','课节','上课日期','上课时间'],sessions.map(s=>{
       const usable=!s.cancelled,display=trialSessionDisplay(s);
-      return `<tr><td><input type="radio" name="trial-session" value="${esc(s.id)}" ${picker.selected===s.id?'checked':''} ${usable?'':'disabled'} onchange="trialState.draft.sessionPicker.selected=this.value"></td><td>${esc(s.name)}</td><td>${trialSessionDateHtml(display)}</td><td>${esc(display.time)}</td></tr>`;
+      return `<tr><td><input type="radio" name="trial-session" value="${esc(s.id)}" ${picker.selected===s.id?'checked':''} ${usable?'':'disabled'} onchange="trialState.draft.sessionPicker.selected=this.value"></td><td>${trialSessionNameHTML(s)}</td><td>${trialSessionDateHtml(display)}</td><td>${esc(display.time)}</td></tr>`;
     }))}
     ${available.length?'':'<p class="notice">暂无可预约课节，请教务补充后续排课后再预约。</p>'}<div class="modal-actions"><button class="btn" onclick="trialCloseSessions()">取消</button><button class="btn primary" onclick="trialConfirmSession()" ${available.length?'':'disabled'}>确认课节</button></div></section></div>`;
 }

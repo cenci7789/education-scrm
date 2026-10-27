@@ -1,6 +1,29 @@
 // Keep legacy attendance linked when new classes or students are inserted ahead of it.
 for(const row of a.attendance){row.classId??=a.classes[row.classIndex]?.id;row.studentId??=a.students[row.studentIndex]?.id}
 function classDetailCurrent(){return a.classes.find(c=>c.id===a.classDetailId)}
+function classScheduleStatus(cls,now=Date.now()){
+  if(!cls)return '待排课';
+  if(['已取消','停课中'].includes(cls.status))return cls.status;
+  const all=Array.isArray(cls.sessions)?cls.sessions:[],sessions=all.filter(s=>!s.cancelled&&s.status!=='已取消');
+  const startOf=s=>{
+    const time=s.start||String(s.time||'').match(/^(\d{1,2}:\d{2})/)?.[1];
+    return new Date(s.startsAt||(s.date?`${s.date}T${time?time.padStart(5,'0'):'00:00'}:00`:'')).getTime();
+  };
+  const starts=sessions.map(startOf),validStarts=starts.filter(Number.isFinite);
+  const first=validStarts.length?Math.min(...validStarts):all.length?NaN:startOf(cls);
+  const clock=Number(now);
+  if(!Number.isFinite(first)||!Number.isFinite(clock))return cls.status||'待排课';
+  if(clock<first)return '未开课';
+  if(!all.length&&cls.status==='已结课')return '已结课';
+  const ends=sessions.map((s,i)=>{
+    const time=s.end||String(s.time||'').match(/[–—~～至-]\s*(\d{1,2}:\d{2})\s*$/)?.[1];
+    const end=new Date(s.endsAt||(s.date&&time?`${s.date}T${time.padStart(5,'0')}:00`:'')).getTime();
+    return Number.isFinite(starts[i])&&end>starts[i]?end:NaN;
+  });
+  const course=a.courses.find(c=>c.name===cls.course),expected=Number(cls.totalSessions||course?.sessions?.length||course?.totalSessions||0);
+  if(sessions.length&&all.length>=expected&&ends.every(Number.isFinite)&&Math.max(...ends)<=clock)return '已结课';
+  return '开课中';
+}
 function classOpenDetail(index){
   const cls=a.classes[index];if(!cls)return;
   a.classDetailId=cls.id;a.selectedClass=index;a.classDetailTab='课节';a.classStudentTab='在班学生';a.classStudentSearch='';a.classDetailAttendance=null;a.modal=null;nav('classDetail');
@@ -61,6 +84,6 @@ function classDetailPage(){
   const cls=classDetailCurrent();
   if(!cls)return '<div class="card pad"><div class="empty">班级不存在或已移除</div><button class="btn" onclick="nav(\'classes\')">返回班级管理</button></div>';
   const course=a.courses.find(c=>c.name===cls.course),tab=a.classDetailTab||'课节';
-  const fields=[['课程名称',cls.course,true],['班级名称',cls.name,true],['课程分类',course?courseCategory(course):'—'],['授课形式',course?courseTeachingFormat(course)+'课':'—'],['年级',course?.grade],['学科',course?.subject],['学期',course?.term],['班型',course?.classType],['校区',cls.campus],['教室',cls.room],['授课老师',cls.teacher],['学生人数上限',cls.capacity],['虚设座位',cls.virtualSeats??5],['班级状态',cls.status]];
+  const fields=[['课程名称',cls.course,true],['班级名称',cls.name,true],['课程分类',course?courseCategory(course):'—'],['授课形式',course?courseTeachingFormat(course)+'课':'—'],['年级',course?.grade],['学科',course?.subject],['学期',course?.term],['班型',course?.classType],['校区',cls.campus],['教室',cls.room],['授课老师',cls.teacher],['教务老师',classAcademicTeacherLabel(cls)],['学生人数上限',cls.capacity],['虚设座位',cls.virtualSeats??5],['班级状态',classScheduleStatus(cls)]];
   return `<div class="toolbar class-detail-heading"><div class="toolbar-left"><button class="btn" onclick="nav('classes')">‹ 返回班级管理</button><h1>班级详情</h1></div><button class="btn primary" onclick="classDetailEdit()">编辑班级</button></div><div class="class-detail-layout"><section class="card pad"><h2 class="section-title">建课基本信息</h2><dl class="class-detail-grid">${fields.map(f=>classDetailField(...f)).join('')}</dl></section><section class="card"><div class="tabs" role="tablist" aria-label="班级明细">${['课节','学生'].map(t=>`<button class="tab ${tab===t?'active':''}" role="tab" aria-selected="${tab===t}" onclick="classDetailSetTab('${t}')">${t}</button>`).join('')}</div><div class="pad" role="tabpanel">${tab==='课节'?classDetailLessonsHTML(cls):`<div class="toolbar"><div class="toolbar-left">${['在班学生','历史在班学生'].map(t=>`<button class="btn ${a.classStudentTab===t?'primary':''}" onclick="classDetailSetStudentTab('${t}')">${t}</button>`).join('')}</div><input class="input" style="width:280px;max-width:100%" placeholder="搜索学生ID、姓名、联系电话" aria-label="搜索班级学生" value="${esc(a.classStudentSearch||'')}" oninput="classDetailSearch(this.value)"></div><div id="class-detail-students">${classDetailStudentsHTML(cls)}</div>`}</div></section></div>${classDetailAttendanceModal(cls)}`;
 }

@@ -1,0 +1,388 @@
+{
+  "recordedAt": "2026-10-22T14:34:29.624Z",
+  "environment": "Windows / Microsoft Edge headless / isolated browser contexts",
+  "scope": "All 41 menu entries; bounded control traversal plus explicit deep business-flow tests.",
+  "controls": {
+    "disabled": 296,
+    "clicked": 3575,
+    "depth-limit": 958,
+    "runtimeErrorRecords": 0
+  },
+  "pageRuntimeErrors": [],
+  "functionalSuite": {
+    "at": "2026-10-22T14:28:44.753Z",
+    "passed": 86,
+    "total": 86,
+    "failures": []
+  },
+  "method": {
+    "maxTraversalDepth": 3,
+    "maxOptionsPerSelect": 5,
+    "deduplicated": "Repeated rows and dynamic IDs grouped by handler and page state",
+    "disabled": "Observed, not forcibly enabled",
+    "depthLimit": "Deferred states, not counted as passed actions"
+  },
+  "supplementaryChecks": [
+    "browser-business-flows.cjs passed: course/class/lead import, coupon claim and redemption, receipt upload, enrollment, trial scheduling, deep profile/activity/form controls, reload",
+    "browser-persistence.cjs passed for HTTP and --file: records, blobs and stale cross-tab writes"
+  ],
+  "limitations": [
+    "Not exhaustive across every data or role combination",
+    "Live payment, telephone, WeCom, SMS, AI and public hosting integrations not verified",
+    "Finance collection settings entry retained pending user design"
+  ],
+  "pages": [
+    {
+      "id": "quickRegister",
+      "name": "线索登记",
+      "traversalCompleted": true,
+      "controls": {
+        "disabled": 2,
+        "clicked": 245,
+        "depth-limit": 5
+      }
+    },
+    {
+      "id": "quickTrial",
+      "name": "预约试听",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 45,
+        "disabled": 1
+      }
+    },
+    {
+      "id": "quickEnroll",
+      "name": "报名",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 47,
+        "disabled": 1
+      }
+    },
+    {
+      "id": "leadTodo",
+      "name": "今日待办",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 358,
+        "disabled": 53,
+        "depth-limit": 127
+      }
+    },
+    {
+      "id": "myLeads",
+      "name": "我的线索",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 567,
+        "disabled": 85,
+        "depth-limit": 157
+      }
+    },
+    {
+      "id": "leadManage",
+      "name": "线索管理",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 262,
+        "disabled": 47,
+        "depth-limit": 201
+      }
+    },
+    {
+      "id": "course",
+      "name": "课程管理",
+      "traversalCompleted": true,
+      "controls": {
+        "disabled": 6,
+        "clicked": 135,
+        "depth-limit": 41
+      }
+    },
+    {
+      "id": "classes",
+      "name": "班级管理",
+      "traversalCompleted": true,
+      "controls": {
+        "disabled": 3,
+        "clicked": 132,
+        "depth-limit": 11
+      }
+    },
+    {
+      "id": "students",
+      "name": "学生管理",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 254,
+        "disabled": 14,
+        "depth-limit": 132
+      }
+    },
+    {
+      "id": "attendance",
+      "name": "考勤",
+      "traversalCompleted": true,
+      "controls": {
+        "disabled": 2,
+        "clicked": 73
+      }
+    },
+    {
+      "id": "makeup",
+      "name": "补课",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 67,
+        "disabled": 7
+      }
+    },
+    {
+      "id": "schedule",
+      "name": "课表",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 24,
+        "disabled": 1
+      }
+    },
+    {
+      "id": "trialManage",
+      "name": "试听管理",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 8
+      }
+    },
+    {
+      "id": "enroll",
+      "name": "报名",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 51,
+        "disabled": 1
+      }
+    },
+    {
+      "id": "tempMove",
+      "name": "临时调班",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 23
+      }
+    },
+    {
+      "id": "transfer",
+      "name": "转课／班",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 23
+      }
+    },
+    {
+      "id": "withdraw",
+      "name": "退课／退班",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 39
+      }
+    },
+    {
+      "id": "supplement",
+      "name": "补费",
+      "traversalCompleted": true,
+      "controls": {
+        "disabled": 2,
+        "clicked": 11
+      }
+    },
+    {
+      "id": "learningActive",
+      "name": "在读学生",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 235,
+        "disabled": 14,
+        "depth-limit": 128
+      }
+    },
+    {
+      "id": "learningHistory",
+      "name": "历史学生",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 6
+      }
+    },
+    {
+      "id": "learningData",
+      "name": "课表",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 13
+      }
+    },
+    {
+      "id": "mallDecor",
+      "name": "商城装修",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 60,
+        "disabled": 18,
+        "depth-limit": 113
+      }
+    },
+    {
+      "id": "mallShelf",
+      "name": "课程上架",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 63
+      }
+    },
+    {
+      "id": "mallGroup",
+      "name": "拼团",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 50,
+        "disabled": 3,
+        "depth-limit": 1
+      }
+    },
+    {
+      "id": "mallJoint",
+      "name": "联报",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 60,
+        "disabled": 3,
+        "depth-limit": 1
+      }
+    },
+    {
+      "id": "mallCoupon",
+      "name": "优惠券",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 117,
+        "depth-limit": 4
+      }
+    },
+    {
+      "id": "mallInvite",
+      "name": "邀请有礼",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 18
+      }
+    },
+    {
+      "id": "wechatLive",
+      "name": "微信活码",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 19
+      }
+    },
+    {
+      "id": "marketingForms",
+      "name": "表单",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 325,
+        "disabled": 28,
+        "depth-limit": 37
+      }
+    },
+    {
+      "id": "orders",
+      "name": "收费订单",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 18
+      }
+    },
+    {
+      "id": "financeRefunds",
+      "name": "退转记录",
+      "traversalCompleted": true,
+      "controls": {}
+    },
+    {
+      "id": "financeArrears",
+      "name": "欠费记录",
+      "traversalCompleted": true,
+      "controls": {}
+    },
+    {
+      "id": "financeConsumption",
+      "name": "课消记录",
+      "traversalCompleted": true,
+      "controls": {}
+    },
+    {
+      "id": "financeReceipts",
+      "name": "收款设置",
+      "traversalCompleted": true,
+      "controls": {}
+    },
+    {
+      "id": "system",
+      "name": "分校配置",
+      "traversalCompleted": true,
+      "controls": {
+        "disabled": 4,
+        "clicked": 5
+      }
+    },
+    {
+      "id": "campus",
+      "name": "校区配置",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 32
+      }
+    },
+    {
+      "id": "teaching",
+      "name": "教学配置",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 33
+      }
+    },
+    {
+      "id": "staff",
+      "name": "员工列表",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 58,
+        "disabled": 1
+      }
+    },
+    {
+      "id": "positions",
+      "name": "职位管理",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 30
+      }
+    },
+    {
+      "id": "permissions",
+      "name": "权限管理",
+      "traversalCompleted": true,
+      "controls": {
+        "clicked": 69
+      }
+    },
+    {
+      "id": "permissionLogs",
+      "name": "操作日志",
+      "traversalCompleted": true,
+      "controls": {}
+    }
+  ]
+}

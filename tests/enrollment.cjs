@@ -46,7 +46,7 @@ assert(page().includes('记录原文 &lt;测试&gt;'));
 run('enrollmentNext();enrollmentOpenClasses();enrollmentToggleClass(a.classes[0].id,true);enrollmentConfirmClasses();enrollmentClassesNext()');
 assert(page().includes('报名测试'));assert(page().includes('语文'));assert(!page().includes('新学生'));
 node('#pay-amount').value='1000';
-node('#pay-channel').value='微信';
+node('#pay-channel').value='POS刷卡';
 addPaymentProof();
 run('finishEnroll()');
 assert.equal(run('a.students.length'),students+1);assert.equal(run('a.orders.length'),orders+1);
@@ -67,7 +67,7 @@ assert.equal(run('a.enrollment.data.note'),'','old records must not be resubmitt
 run('enrollmentClearStudent()');
 assert.equal(run('a.selectedStudent'),null);assert.equal(run('a.enrollment.data.name'),'');
 assert.equal(run('a.enrollment.data.subjects.length'),0);
-fill();node('#enroll-note').value='';schoolRows=[];gender='';
+fill();node('#enroll-name').value='另一位报名测试';node('#enroll-note').value='';schoolRows=[];gender='';
 run('enrollmentNext()');assert.equal(run('a.enrollStep'),2,'optional fields may all be blank');
 run("nav('students')");
 assert.equal(run('leadRecordDraft'),null);assert.equal(run('a.enrollment'),null);assert.equal(run('a.enrollStep'),1);

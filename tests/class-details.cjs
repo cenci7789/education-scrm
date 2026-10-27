@@ -27,11 +27,11 @@ run('courseOpenForm(0)');assert.match(page(),/id="course-fee"[^>]*value="1000"/)
 node('#course-name').value=run('a.courses[0].name');node('#course-category').value='班课';node('#course-format').value='面授';
 node('#course-fee').value='600';node('#course-material').value='25';
 run("a.courseSessionDraft.sessions=[{id:'first',name:'第一讲内容'},{id:'second',name:'第二讲内容'}];saveCourse()");
-assert.equal(run('a.courses[0].fee'),600);assert.equal(run('a.courses[0].materialFee'),25);
+assert.equal(run('a.courses[0].fee'),600);assert.equal(run('a.courses[0].materialFee'),0);
 run('a.classes[0].fee=9999;a.classes[0].materialFee=888;classOpenDetail(0)');
 assert(!page().includes('¥600.00'));assert(!page().includes('¥25.00'));assert(!page().includes('9999'));
-assert.equal(run('enrollmentClassPrice({classId:a.classes[0].id,startSession:2}).totalCents'),32500);
-run('courseOpenForm(0)');assert.match(page(),/id="course-material"[^>]*value="25"/);
+assert.equal(run('enrollmentClassPrice({classId:a.classes[0].id,startSession:2}).totalCents'),30000);
+run('courseOpenForm(0)');assert(!page().includes('course-material'));
 node('#course-name').value='更名后的语文课程';node('#course-fee').value='700';node('#course-material').value='0';run('saveCourse()');
 assert.equal(run('a.classes[0].course'),'更名后的语文课程');
 run('classOpenDetail(0)');assert(!page().includes('收费信息'));

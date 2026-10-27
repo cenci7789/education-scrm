@@ -1,11 +1,31 @@
 // 报名学生信息草稿跨步骤保存，确认报名后才写入学生档案。
 function enrollmentActive(){return ['enroll','quickEnroll'].includes(state.page)}
+// 进入报名只建立草稿；学生身份在试听、报名和后续服务之间复用。
+function enrollmentLeadStudents(lead){
+  if(!lead)return [];
+  const linkedIds=new Set([lead.studentId,...trialState.requests.filter(r=>r.leadId===lead.leadId).map(r=>r.studentId)].filter(Boolean));
+  const linked=a.students.filter(s=>linkedIds.has(s.id)||lead.leadId&&s.originLeadId===lead.leadId);
+  if(linked.length)return linked;
+  return a.students.filter(s=>s.name===lead.name&&s.phone===lead.phone&&!String(s.phone).includes('*'));
+}
+function enrollmentStudent(){
+  const draft=a.enrollment;
+  return draft&&Object.hasOwn(draft,'studentId')?a.students.find(s=>s.id===draft.studentId):a.students[a.selectedStudent];
+}
+function enrollmentStartFromLead(lead){
+  enrollmentDisposeProofs();leadDisposeRecord();
+  const matches=enrollmentLeadStudents(lead);
+  a.enrollment=null;a.enrollingLeadId=lead.leadId;a.selectedStudent=matches.length===1?a.students.indexOf(matches[0]):null;
+  a.selectedClass=null;a.enrollStep=1;a.modal=null;leadState.modal=null;
+  nav('enroll');toast(matches.length>1?'找到多条关联学生，请核对并选择已有学生':'已带入学生信息，请继续选择班级');
+}
 function enrollmentEnsure(){
   if(a.enrollment)return a.enrollment;
   const student=a.students[a.selectedStudent],lead=leadState.leads.find(l=>l.leadId===a.enrollingLeadId);
   const source=lead||student||{};
   const data={name:source.name||'',phone:source.phone||'',grade:source.grade||'',subjects:[],schools:(source.schools?.length?source.schools:[{stage:'小学',name:source.school||'',entryYear:''}]).map(s=>({...s})),gender:source.gender||'',guardian:source.guardian||'',source:source.source||'',note:''};
-  a.enrollment={data,optionalOpen:false,classes:[],classPicker:null};
+  data.schoolSystem=source.schoolSystem==='54'?'54':'63';
+  a.enrollment={data,studentId:student?.id||null,leadId:lead?.leadId||null,optionalOpen:false,classes:[],classPicker:null};
   leadDisposeRecord();
   leadRecordDraft=leadCreateRecordDraft('enrollment');
   leadRecordDraft.noteId='enroll-note';leadRecordDraft.saveId='enroll-next';
@@ -52,6 +72,13 @@ function enrollmentCapture(){
 function enrollmentValidate(d){
   if(!d?.name){toast('请填写学生姓名');return false}
   if(!d.phone){toast('请填写联系电话');return false}
+  const selected=enrollmentStudent();
+  if(a.enrollment?.studentId&&!selected){toast('关联学生已不存在，请重新选择');return false}
+  if(selected&&(selected.name!==d.name||selected.phone!==d.phone)){toast('姓名或联系电话与已选学生不一致，请重新选择；修改档案请在学生详情办理');return false}
+  if(!/^1\d{10}$/.test(d.phone)&&!(selected?.phone===d.phone&&/^1\d{2}\*{4}\d{4}$/.test(d.phone))){toast('请填写正确的11位手机号');return false}
+  if(a.students.some(s=>s!==selected&&s.name===d.name&&s.phone===d.phone)){toast('该学生已存在，请通过“选择已有学生”继续报名；重复档案请先核对');return false}
+  const lead=leadState.leads.find(l=>l.leadId===a.enrollingLeadId);
+  if(a.enrollingLeadId&&(!lead||lead.name!==d.name||lead.phone!==d.phone)){toast('来源线索资料已变化，请重新从线索发起报名');return false}
   if(!d.grade){toast('请选择就读年级');return false}
   return true;
 }
@@ -71,9 +98,13 @@ function enrollmentClearStudent(){
 }
 const enrollmentPreviousSelectStudent=selectModalStudent;
 selectModalStudent=function(){
-  if(enrollmentActive()&&document.querySelector('input[name="modal-student"]:checked')){
+  const choice=document.querySelector('input[name="modal-student"]:checked');
+  if(enrollmentActive()&&choice){
+    const student=a.students[Number(choice.value)],lead=leadState.leads.find(l=>l.leadId===a.enrollingLeadId);
+    if(!student){toast('请选择有效学生');return}
+    if(lead&&!enrollmentLeadStudents(lead).includes(student)){toast('请选择与来源线索一致的学生，避免串档');return}
     enrollmentDisposeProofs();
-    leadDisposeRecord();a.enrollment=null;a.enrollingLeadId=null;a.selectedClass=null;
+    leadDisposeRecord();a.enrollment=null;a.selectedClass=null;
   }
   enrollmentPreviousSelectStudent();
 };
@@ -92,9 +123,10 @@ finishEnroll=function(){
   const course=enrollmentSelectedClasses()[0].class;
   const files=(leadRecordDraft?.context==='enrollment'?leadRecordDraft.items:[]).map(item=>({fileName:item.file.name,url:item.url,size:item.file.size,kind:item.kind,transcript:item.transcript||''}));
   const info={name:d.name,phone:d.phone,grade:d.grade,subjects:[...d.subjects],subject:d.subjects.join('、'),schools:d.schools.map(s=>({...s})),school:d.schools[0]?.name||'',gender:d.gender,guardian:d.guardian,source:d.source,campus:course.campus};
-  let student=a.students[a.selectedStudent];
+  info.schoolSystem=d.schoolSystem==='54'?'54':'63';
+  let student=enrollmentStudent();
   if(student)Object.assign(student,info);
-  else{student={...info,id:String(Date.now()),status:'在读',follow:'已签约',className:course.name};a.students.unshift(student);a.selectedStudent=0}
+  else{student={...info,id:String(Date.now())+'-'+Math.random().toString(36).slice(2,10),status:'在读',follow:'已签约',className:course.name};a.students.unshift(student);a.selectedStudent=0}
   if(d.note||files.length){
     const entry=leadHistoryEntry('报名信息记录',d.note||'添加了报名沟通附件',{files});
     student.history=[...(student.history||[]),entry];
@@ -109,7 +141,7 @@ function enrollmentCleanup(){
   if(!enrollmentActive()&&a.enrollment){
     enrollmentDisposeProofs();
     if(leadRecordDraft?.context==='enrollment')leadDisposeRecord();
-    a.enrollment=null;a.enrollStep=1;a.selectedClass=null;
+    a.enrollment=null;a.enrollingLeadId=null;a.enrollStep=1;a.selectedClass=null;a.selectedStudent=null;
   }
 }
 const enrollmentPreviousRender=render,enrollmentPreviousAcademicRender=academicRender;
