@@ -62,8 +62,9 @@ function trialValidateClasses(d){
   if(!d.classes.length){toast('请至少选择一个试听班级');return false}
   if(new Set(d.classes.map(item=>item.classId)).size!==d.classes.length){toast('请勿重复选择班级');return false}
   if(d.classes.some(item=>!a.classes.some(c=>c.id===item.classId&&trialAvailableClass(c)))){toast('部分班级已不可预约，请重新选择');return false}
+  if(d.classes.some(item=>!item.sessionId||!item.preferredTime)){toast('请为每个班级选择实际试听课节');return false}
   if(d.classes.some(item=>item.sessionId&&!trialClassSessions(a.classes.find(c=>c.id===item.classId)).some(s=>s.id===item.sessionId&&!s.cancelled&&s.startsAt===item.preferredTime&&trialFuture(s.startsAt)))){toast('所选课节已变更或不可预约，请重新选择课节');return false}
-  if(d.classes.some(item=>item.preferredTime&&!trialFuture(item.preferredTime))){toast('意向试听时间须晚于当前时间，或留空由教务安排');return false}
+  if(d.classes.some(item=>item.preferredTime&&!trialFuture(item.preferredTime))){toast('试听时间须晚于当前时间，请重新选择课节');return false}
   return true;
 }
 function trialRemoveClass(index){const item=trialState.draft.classes[index];if(item)trialToggleClass(item.classId,false)}
@@ -79,7 +80,7 @@ function trialSelectedClassesForm(){
   return `<section class="card pad trial-class-module"><h2 class="section-title">筛选班级</h2><div class="enrollment-class-filters">${trialClassFilterFields()}</div>
     <div class="toolbar"><p class="help">时间按下节课开始时间筛选：12:00 归入下午，18:00 归入晚上；22:00 不包含在晚上时段。</p><button class="btn small" onclick="trialResetClassFilters()">重置筛选</button></div>
     <div id="trial-class-results">${trialClassResults()}</div></section>
-    <section class="card pad trial-booking-module"><h2 class="section-title">预约信息</h2><p class="help" role="status">已选择 <strong id="trial-class-count">${d.classes.length}</strong> 个班级（含筛选后隐藏的班级）。选择课节后自动带入试听时间，提交后由教务确认排班。</p>
+    <section class="card pad trial-booking-module"><h2 class="section-title">预约信息</h2><p class="help" role="status">已选择 <strong id="trial-class-count">${d.classes.length}</strong> 个班级（含筛选后隐藏的班级）。选择课节后自动带入试听时间，提交后直接入班试听。</p>
     <div id="trial-selected-settings">${trialSelectedTable(d)}</div>
     <div class="field"><label for="trial-note">预约备注</label><textarea class="textarea" id="trial-note" maxlength="1000" placeholder="学生情况、试听目标、方便上课的时间等" oninput="trialState.draft.note=this.value">${esc(d.note)}</textarea></div></section>${d.sessionPicker?trialSessionModal():''}`;
 }

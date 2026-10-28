@@ -6,7 +6,7 @@ function shortcutDate(date){return `${date.getFullYear()}-${String(date.getMonth
 function shortcutDayOffset(days){const date=new Date();date.setDate(date.getDate()-days);return shortcutDate(date)}
 leadState.leads.forEach((l,i)=>l.leadId??=`LEAD-${i+1}`);
 leadState.leads.slice(0,5).forEach((l,i)=>{l.registrar=shortcutUser;l.createdAt=`${shortcutDayOffset([5,0,28,8,1][i])} 10:30`});
-leadPages.quickRegister='线索登记';
+leadPages.quickRegister='线索登记（非招生）';
 const shortcutPreviousRender=render;
 render=function(){if(state.page!=='enroll')a.enrollingLeadId=null;if(state.page==='quickRegister'||state.page==='quickEnroll')shortcutRender();else shortcutPreviousRender()};
 const shortcutPreviousLeadRender=leadRender;
@@ -18,7 +18,10 @@ saveLead=function(){
   const fromShortcut=state.page==='quickRegister'||(state.page==='leadForm'&&leadState.formReturnPage==='quickRegister'),creating=leadState.formMode==='create',before=leadState.leads.length;
   shortcutPreviousSaveLead();
   if(creating&&leadState.leads.length>before){
-    leadState.leads[0].registrar=shortcutUser;
+    const operator=typeof leadCurrentOperator==='function'?leadCurrentOperator():{name:shortcutUser};
+    leadState.leads[0].registrar=operator.name;
+    leadState.leads[0].registrarAccount=operator.account||'';
+    if(operator.staffId)leadState.leads[0].registrarStaffId=operator.staffId;
     leadState.leads[0].leadId=`LEAD-${Date.now()}`;
     leadState.leads[0].createdAt=new Date().toLocaleString('sv-SE').replace('T',' ');
     if(fromShortcut){state.page='quickRegister';shortcutRender()}
@@ -36,7 +39,7 @@ function shortcutRender(){
   document.querySelectorAll('.menu-item').forEach(e=>e.classList.toggle('active',e.dataset.page===page));
   document.querySelectorAll('[data-nav-toggle]').forEach(e=>e.classList.remove('active-parent'));
   document.querySelector('[data-nav-toggle="shortcuts"]').classList.add('active-parent');
-  $('#crumb').textContent='快捷入口 / '+(page==='quickRegister'?'线索登记':'报名');
+  $('#crumb').textContent='快捷入口 / '+(page==='quickRegister'?'线索登记（非招生）':'报名');
   $('#view').innerHTML=page==='quickRegister'
     ?shortcutRegisterPage()+(leadState.modal?leadModalPage():'')
     :enrollPage()+(a.modal?modalPage():'');
@@ -53,8 +56,8 @@ function shortcutRegisterPage(){
     ['有效线索',valid.length,'该账号近90天登记的全部线索总计（含今天）。'],
     ['已转化',convertedCount,'该账号登记线索中，正价课报名订单已缴清的人数；部分缴费可先入班，补齐后计入。']
   ];
-  const rows=registered.map(l=>{const intent=shortcutIntent(l);return `<tr data-created="${esc(l.createdAt?.slice(0,10)||'')}" data-search="${esc([l.name,l.guardian,l.phone].join(' '))}" data-stage="${esc(l.stage)}" data-intent="${esc(intent)}"><td>${leadPerson(l)}</td><td>${esc(l.grade)}</td><td>${esc(l.subject)}</td><td>${esc(l.createdAt||'—')}</td><td>${esc(l.owner)}</td><td>${leadPill(l.stage)}</td><td><span class="shortcut-intent">${esc(intent)}</span></td><td>${esc(l.history.at(-1)?.[1]||'—')}</td><td><button class="btn small" onclick="leadDetail(${l.index},'quickRegister')">详情</button></td></tr>`});
-  return heading('线索登记','查看本人录入的线索；分配、转化或归档后仍归入原登记人统计')+
+  const rows=registered.map(l=>{const intent=shortcutIntent(l);return `<tr data-created="${esc(l.createdAt?.slice(0,10)||'')}" data-search="${esc([l.name,l.guardian,l.phone].join(' '))}" data-stage="${esc(l.stage)}" data-intent="${esc(intent)}"><td>${leadPerson(l)}</td><td>${esc(l.grade)}</td><td>${esc(l.subject)}</td><td>${esc(l.createdAt||'—')}</td><td>${esc(leadCampusQueueLabel(l))}</td><td>${leadPill(l.stage)}</td><td><span class="shortcut-intent">${esc(intent)}</span></td><td>${esc(l.history.at(-1)?.[1]||'—')}</td><td><button class="btn small" onclick="leadDetail(${l.index},'quickRegister')">详情</button></td></tr>`});
+  return heading('线索登记（非招生）','查看本人录入的线索；分配、转化或归档后仍归入原登记人统计')+
     `<div class="shortcut-stats">${stats.map(([name,value,note])=>`<div class="card shortcut-stat"><span>${name}</span><strong>${value}</strong><small class="shortcut-stat-note">${note}</small></div>`).join('')}</div>`+
     `<div class="card pad"><div class="toolbar"><div class="toolbar-left"><h2 class="section-title" style="margin:0">我录入的线索</h2><span class="count">共 ${registered.length} 条</span></div><div class="toolbar-right"><button class="btn" onclick="leadOpenForm('create','import')">批量导入</button><button class="btn primary" onclick="leadOpenForm()">+ 单个登记</button></div></div>`+
     `<div class="shortcut-filter-bar"><div class="shortcut-date-row"><label for="quick-date-from">登记时间</label><div class="shortcut-date-range"><input id="quick-date-from" class="input" type="date" value="${shortcutFilter.from}" aria-label="登记开始日期" onchange="shortcutSetDate()"><span>至</span><input id="quick-date-to" class="input" type="date" value="${shortcutFilter.to}" aria-label="登记结束日期" onchange="shortcutSetDate()"></div><div class="shortcut-presets">${[['today','今天'],['yesterday','昨天'],['7','近7天'],['30','近30天'],['90','近90天']].map(([key,label])=>`<button class="btn ${shortcutFilter.preset===key?'selected':''}" onclick="shortcutPreset('${key}')">${label}</button>`).join('')}</div></div><div class="shortcut-extra-filters"><label for="quick-stage">当前阶段</label><select class="select" id="quick-stage" onchange="shortcutFilter.stage=this.value;shortcutApplyFilters()"><option value="">全部阶段</option>${['新线索','新分配','跟进中','已报名'].map(x=>`<option value="${x}" ${shortcutFilter.stage===x?'selected':''}>${x}</option>`).join('')}</select><label for="quick-intent">意向度</label><select class="select" id="quick-intent" onchange="shortcutFilter.intent=this.value;shortcutApplyFilters()"><option value="">全部意向度</option>${[...leadIntentOptions,'待判断'].map(x=>`<option value="${x}" ${shortcutFilter.intent===x?'selected':''}>${x}</option>`).join('')}</select><div class="shortcut-search"><svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 5 5"></path></svg><input id="quick-search" class="input" value="${esc(shortcutFilter.search)}" placeholder="搜索学生、家长或手机号" aria-label="搜索学生、家长或手机号" oninput="shortcutFilter.search=this.value;shortcutApplyFilters()"></div></div></div>`+

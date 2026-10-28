@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict');
 const {run,node,page}=require('./lead-registration.cjs');
-run("permissionChangeIdentity('admin');state.page='quickRegister';render();leadOpenForm()");
+run("permissionChangeIdentity('admin');state.page='myLeads';render();leadOpenForm()");
 node('input[name="lead-assign"]:checked').value='specific';run('leadToggleAssignment()');
 assert.equal(node('#lead-assignee-panel').hidden,false);
 node('#lead-name').value='指定负责人测试';node('#lead-phone').value='13812345678';node('#lead-note').value='';

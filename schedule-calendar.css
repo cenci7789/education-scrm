@@ -9,3 +9,24 @@
 .schedule-tooltip{position:fixed;z-index:1200;width:360px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;padding:16px;background:#e7f6ff;border:1px solid #badcec;border-radius:7px;box-shadow:0 8px 25px #1b355530;color:#314c5e;pointer-events:none;font-size:13px}.schedule-tooltip[hidden]{display:none}.schedule-tooltip-title{display:block;margin-bottom:12px;font-size:14px}.schedule-tooltip dl{margin:0}.schedule-tooltip dl>div{display:grid;grid-template-columns:82px minmax(0,1fr);gap:8px;margin-top:7px;line-height:1.5}.schedule-tooltip dt{color:#728da0}.schedule-tooltip dd{margin:0;overflow-wrap:anywhere}
 .schedule-order{margin:0 0 20px;max-width:640px}.schedule-order-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-top:1px solid #edf1f6}.schedule-order-row:first-of-type{border-top:0}
 @media(max-width:700px){.schedule-date-bar{padding:12px}.schedule-date-bar strong{font-size:12px}.schedule-scroll{max-height:65vh}}
+.schedule-heading-title{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+.schedule-heading-campus{display:flex;align-items:center;gap:8px;margin-top:8px}
+.schedule-heading-campus .select{height:36px;max-width:100%}
+.schedule-time-filters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.schedule-time-filters .field{margin:0;min-width:0}
+.schedule-teacher-controls{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:20px}
+.schedule-teacher-name,.schedule-teacher-range{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.schedule-teacher-name .input{width:210px}
+.schedule-teacher-range .input{width:160px}
+.schedule-teacher-picker{position:relative;width:210px}
+.schedule-time-picker{width:100%}
+.schedule-time-filters .field:last-child .schedule-teacher-picker-panel{left:auto;right:0}
+.schedule-teacher-picker>.select{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left}
+.schedule-teacher-picker-panel{position:absolute;top:calc(100% + 6px);left:0;z-index:20;width:280px;max-width:80vw;background:#fff;border:1px solid #dfe6ee;border-radius:8px;padding:10px;box-shadow:0 8px 24px #18344e22}
+.schedule-teacher-picker-panel[hidden]{display:none}
+.schedule-teacher-picker-panel .input{width:100%;margin-bottom:8px}
+.schedule-teacher-picker-panel [role=listbox]{max-height:240px;overflow:auto}
+.schedule-teacher-picker-panel [role=option]{display:block;width:100%;padding:9px 10px;border:0;border-radius:4px;background:#fff;text-align:left;cursor:pointer;color:inherit}
+.schedule-teacher-picker-panel [role=option]:hover,.schedule-teacher-picker-panel [role=option]:focus-visible,.schedule-teacher-picker-panel [aria-selected=true]{background:#eff4ff;color:#315deb}
+@media(max-width:1100px){.schedule-time-filters{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.schedule-time-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}

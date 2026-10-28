@@ -19,7 +19,7 @@ const indices=()=>JSON.parse(run('JSON.stringify(attendanceFiltered().map(row=>r
 for(const [key,value] of [['campus','测试校区'],['subject','英语'],['grade','2'],['teacher','教务乙'],['format','直播'],['date','2027-09-08'],['time','08:00-10:00'],['search','  直播a  ']]){
   run(`attendanceSetFilter(${JSON.stringify(key)},${JSON.stringify(value)})`);assert.deepEqual(indices(),[3]);
 }
-assert(node('#attendance-results').innerHTML.includes('attendanceOpenLesson(3,0)'),'class and lesson survive filtering');
+assert(node('#attendance-results').innerHTML.includes('attendanceOpenClass(3)'),'class survives filtering');
 run("attendanceSetFilter('teacher','授课甲')");assert.deepEqual(indices(),[3]);
 run("attendanceSetFilter('subject','语文')");assert.deepEqual(indices(),[]);
 assert(node('#attendance-results').innerHTML.includes('暂无符合条件'));

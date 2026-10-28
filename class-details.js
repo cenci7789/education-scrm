@@ -48,7 +48,7 @@ function classDetailStudentRows(cls){
   return a.students.flatMap((student,index)=>{
     const enrollments=(student.enrollments||[]).filter(e=>e.classId===cls.id||(!e.classId&&e.className===cls.name));
     const active=enrollments.filter(e=>!historyStatuses.includes(e.enrollmentStatus||e.status));
-    const trials=trialState.requests.filter(r=>r.classId===cls.id&&r.studentId===student.id&&r.status==='已排班');
+    const trials=trialState.requests.filter(r=>r.classId===cls.id&&r.studentId===student.id&&r.status==='已排班'&&!r.supersededBy&&!r.salesReturnedAt);
     if(enrollments.length)return [{...student,index,kind:active.length?'在班学生':'历史在班学生',classStatus:active.length?(active.at(-1).enrollmentStatus||active.at(-1).status||'上课中'):(enrollments.at(-1).enrollmentStatus||enrollments.at(-1).status||'历史')}];
     if(trials.length)return [{...student,index,kind:'在班学生',classStatus:'试听'}];
     if(student.classId===cls.id||(!student.classId&&(student.className===cls.name||student.classNames?.includes(cls.name))))return [{...student,index,kind:student.status==='历史'?'历史在班学生':'在班学生',classStatus:student.status||'在班'}];
@@ -58,7 +58,7 @@ function classDetailStudentRows(cls){
 function classDetailStudentsHTML(cls){
   const all=classDetailStudentRows(cls),search=String(a.classStudentSearch||'').trim().toLowerCase();
   const list=all.filter(s=>s.kind===(a.classStudentTab||'在班学生')&&(!search||[s.id,s.name,s.phone].some(value=>String(value||'').toLowerCase().includes(search))));
-  return aTable(['学生ID','学生姓名','联系电话','在班状态','操作'],list.map(s=>`<tr><td>${esc(s.id)}</td><td>${esc(s.name)}</td><td>${esc(s.phone||'—')}</td><td><span class="badge ${s.kind==='历史在班学生'?'off':''}">${esc(s.classStatus)}</span></td><td>${permissionCanVisit('studentDetail')?`<button class="btn small" onclick="classDetailStudent(${s.index})">查看档案</button>`:'—'}</td></tr>`))+(!list.length?'<div class="empty">暂无符合条件的学生</div>':'')+`<div class="data-bar">共 ${list.length} 位学生</div>`;
+  return aTable(['学生ID','学生姓名','联系电话','在班状态','操作'],list.map(s=>`<tr><td>${esc(s.id)}</td><td>${esc(s.name)}${s.classStatus==='试听'?'[试听]':''}</td><td>${esc(s.phone||'—')}</td><td><span class="badge ${s.kind==='历史在班学生'?'off':''}">${esc(s.classStatus)}</span></td><td>${permissionCanVisit('studentDetail')?`<button class="btn small" onclick="classDetailStudent(${s.index})">查看档案</button>`:'—'}</td></tr>`))+(!list.length?'<div class="empty">暂无符合条件的学生</div>':'')+`<div class="data-bar">共 ${list.length} 位学生</div>`;
 }
 function classDetailStudent(index){if(!permissionCanVisit('studentDetail')||!a.students[index])return;a.selectedStudent=index;nav('studentDetail')}
 function classDetailSearch(value){a.classStudentSearch=value;const cls=classDetailCurrent();if(cls)$('#class-detail-students').innerHTML=classDetailStudentsHTML(cls)}

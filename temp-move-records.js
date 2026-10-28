@@ -26,8 +26,9 @@ const moveRecordPage=flowPage;
 flowPage=function(type){const html=moveRecordPage(type);if(type!=='tempMove')return html;return html+`<div class="card pad" style="margin-top:20px"><h2 class="section-title">临时调班记录</h2>${aTable(['学生','调出课节','调入课节','办理时间','状态'],(a.tempMoveRecords||[]).slice().reverse().map(r=>`<tr><td>${esc(r.studentName)}</td><td>${esc(r.fromClassName)} · ${esc(r.fromSession)}</td><td>${esc(r.toClassName)} · ${esc(r.toSession)}</td><td>${esc(studentProfileTime(r.recordedAt))}</td><td>${esc(r.status)}</td></tr>`))}${(a.tempMoveRecords||[]).length?'':'<div class="empty">暂无临时调班记录</div>'}</div>`};
 
 // A moved lesson consumes the original purchased lesson, while attendance stays at the actual class.
-function businessAttendanceRecords(){return [...a.attendance,...(a.lessonConsumptionRecords||[])].map(r=>r.billingClassId?{...r,classId:r.billingClassId,sessionId:r.billingSessionId,session:r.billingSession}:r)}
+function businessAttendanceRecords(){return [...a.attendance,...(a.lessonConsumptionRecords||[])].filter(r=>!r.trialRequestId).map(r=>r.billingClassId?{...r,classId:r.billingClassId,sessionId:r.billingSessionId,session:r.billingSession}:r)}
 function businessStampAttendance(record){
+ if(record.trialRequestId){record.consumptionCents=0;return}
  const move=(a.tempMoveRecords||[]).find(m=>m.status!=='已取消'&&m.studentId===record.studentId&&m.toClassId===record.classId&&m.toSessionId===record.sessionId);
  if(move)Object.assign(record,{tempMoveId:move.id,billingClassId:move.fromClassId,billingSessionId:move.fromSessionId,billingSession:move.fromSession});
  const classId=record.billingClassId||record.classId,number=Number(String(record.billingSession||record.session).match(/\d+/)?.[0]),matches=a.orders.filter(o=>o.studentId===record.studentId&&!['已取消','已关闭','交易关闭'].includes(o.status)).flatMap(o=>(o.items||[]).filter(i=>i.classId===classId));

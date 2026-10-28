@@ -1,151 +1,62 @@
 const assert=require('node:assert/strict');
-const {run,node,page,context}=require('./lead-registration.cjs');
-const time=`${new Date().getFullYear()+1}-12-01T10:00`;
-function set(id,value){node('#'+id).value=value}
-function student(name,phone='13898765432'){
-  set('trial-name',name);set('trial-phone',phone);set('trial-grade','小三');set('trial-guardian','妈妈');
+const {run,json,node,handlers}=require('./prototype-runtime.cjs')();
+run(`
+permissionChangeIdentity('sales');
+const day=new Date();day.setDate(day.getDate()+7);const date=leadEnrollmentDate(day.toISOString());
+state.campuses=[{name:'试听校区',active:true}];
+state.staff=[{id:'T1',name:'甲老师',roleId:'teacher',active:true},{id:'T2',name:'乙老师',roleId:'teacher',active:true}];
+a.courses=[{id:'C1',name:'数学',active:true,grade:'小三',subject:'数学',year:day.getFullYear(),term:'秋季',fee:1000,sessions:[{name:'第1讲'},{name:'第2讲'}]}];
+a.classes=['A','B'].map((id,i)=>({id,name:id+'班',course:'数学',campus:'试听校区',teacher:i?'乙老师':'甲老师',teacherId:i?'T2':'T1',academicTeacher:'教务老师',room:'教室'+id,capacity:2,students:0,sessions:[{id:id+'1',number:1,name:'第一讲',date,time:i?'09:00–11:00':'08:00–10:00',startsAt:date+(i?'T09:00':'T08:00')},{id:id+'2',number:2,name:'第二讲',date,time:'14:00–16:00',startsAt:date+'T14:00'}]}));
+a.students=[];a.orders=[];a.attendance=[];trialState.requests=[];
+leadState.leads=[{leadId:'L1',name:'试听学生甲',phone:'13888880001',grade:'小三',guardian:'妈妈',status:'mine',stage:'新线索',owner:leadCurrentOperator().name,ownershipCampus:'试听校区',next:'未约定',history:[]}];
+function testDraft(name='试听学生甲',phone='13888880001',cls='A',session='A1'){
+ trialStart(name==='试听学生甲'?leadState.leads[0]:null);
+ const c=a.classes.find(c=>c.id===cls),s=trialClassSessions(c).find(s=>s.id===session);
+ Object.assign(trialState.draft,{name,phone,grade:'小三',classes:[{classId:cls,sessionId:s.id,sessionName:s.name,preferredTime:s.startsAt}]});trialState.step=3;
 }
-function intention(index=0){
-  run(`[...trialState.draft.classes].forEach(item=>trialToggleClass(item.classId,false));trialToggleClass(a.classes[${index}].id,true)`);
-  run(`trialState.draft.classes[0].preferredTime='${time}'`);set('trial-note','周末试听');
-}
-function submitNew(name,phone){
-  run('trialStart()');student(name,phone);run('trialNextStep()');intention();run('trialNextStep();trialSubmit()');
-  return run('trialState.requests[0].id');
-}
-function prepare(id,classIndex=0){
-  run(`state.page='trialManage';render();trialOpenReview(${id})`);
-  set('trial-confirm-class',run(`a.classes[${classIndex}].id`));
-  set('trial-confirm-time',time);set('trial-schedule-note','提前10分钟到教室');
-}
-run("permissionChangeIdentity('sales');trialStart()");
-assert(page().includes('学生信息'));
-assert(page().includes('试听意向'));
-assert(!page().includes('modal-backdrop'));
-assert.equal(run("permissionCanVisit('trialManage')"),false);
-student('','');run('trialNextStep()');assert.equal(run('trialState.step'),1);
-student('试听新生','abc');run('trialNextStep()');assert.equal(run('trialState.step'),1);
-student('试听新生');run('trialNextStep()');assert.equal(run('trialState.step'),2);
-intention();run("trialState.draft.classes[0].preferredTime='2000-01-01T10:00';trialNextStep()");assert.equal(run('trialState.step'),2);
-intention();run('trialNextStep()');assert.equal(run('trialState.step'),3);
-assert(page().includes('周末试听'));
-run('trialPreviousStep()');assert(page().includes(time.replace('T',' ')));
-run('trialNextStep()');
-const beforeStudents=run('a.students.length'),beforeClasses=run('JSON.stringify(a.classes)'),beforeOrders=run('JSON.stringify(a.orders)');
-run('trialSubmit();trialSubmit()');
+testDraft();trialSubmit();trialSubmit();
+`);
 assert.equal(run('trialState.requests.length'),1);
-assert.equal(run('trialState.requests[0].status'),'待排班');
-assert.equal(run('a.students.length'),beforeStudents);
-assert.equal(run('JSON.stringify(a.classes)'),beforeClasses);
-assert.equal(run('JSON.stringify(a.orders)'),beforeOrders);
-assert(page().includes('等待教务确认'));
-const first=run('trialState.requests[0].id');
-set('trial-confirm-class',run('a.classes[0].id'));set('trial-confirm-time',time);
-run(`trialConfirm(${first})`);
-assert.equal(run('trialState.requests[0].status'),'待排班');
-run("state.page='trialManage';render()");
-assert(page().includes('无权限'));
-submitNew('试听新生');
-assert.equal(run('trialState.requests.length'),1,'duplicate pending application blocked');
-run("permissionChangeIdentity('academic')");
-assert(page().includes('试听新生'));
-prepare(first,1);run(`trialConfirm(${first})`);assert.equal(run('trialState.requests[0].status'),'待排班');
-prepare(first);set('trial-confirm-time','2000-01-01T10:00');run(`trialConfirm(${first})`);
-assert.equal(run('trialState.requests[0].status'),'待排班');
-prepare(first);run(`a.classes[0].students=a.classes[0].capacity;trialConfirm(${first})`);
-assert.equal(run('trialState.requests[0].status'),'待排班');
-run(`a.classes[0].students=1;a.courses[0].active=false;trialConfirm(${first})`);
-assert.equal(run('trialState.requests[0].status'),'待排班');
-run(`a.courses[0].active=true;state.campuses[0].active=false;trialConfirm(${first})`);
-assert.equal(run('trialState.requests[0].status'),'待排班');
-run(`state.campuses[0].active=true;trialConfirm(${first});trialConfirm(${first})`);
 assert.equal(run('trialState.requests[0].status'),'已排班');
-assert.equal(run('a.students.length'),beforeStudents+1);
-assert.equal(run('a.students.at(-1).status'),'试听');
-assert.equal(run('a.classes[0].students'),1);
-assert.equal(run('a.classes[0].trialRoster.length'),1);
-assert.equal(run('JSON.stringify(a.orders)'),beforeOrders);
-assert.equal(run('trialState.requests[0].confirmedBy'),'教务岗');
-assert.equal(run('trialState.requests[0].scheduledTime'),time);
-run("nav('classes')");assert(page().includes('试听名单（已确认排班）'));assert(page().includes('试听新生'));
-run("nav('students');studentTermSetTab('试听学生');studentTermSetFilter('term',trialState.requests[0].academicTerm)");assert(page().includes('试听新生'));
-run("a.selectedStudent=a.students.length-1;nav('studentDetail')");
-assert(page().includes('沟通记录'));assert(!page().includes('studentProfileTab('));
-run("studentProfileTab('购课信息')");
-assert(page().includes('暂无正式报名课程'));assert(page().includes('试听课程'));assert(!page().includes('¥1,000.00'));
-run(`state.page='trialManage';trialOpenReview(${first})`);assert(page().includes('提前10分钟到教室'));
-assert(!page().includes('onclick="trialConfirm('));
-
-// Same person is linked to the existing trial student; the same slot cannot be scheduled twice.
-run("permissionChangeIdentity('sales')");
-const duplicate=submitNew('试听新生');
-run("permissionChangeIdentity('academic')");prepare(duplicate);run(`trialConfirm(${duplicate})`);
-assert.equal(run('trialState.requests[0].status'),'待排班');
-assert.equal(run('a.students.length'),beforeStudents+1);
-set('trial-confirm-time',time.replace('10:00','11:00'));run(`trialConfirm(${duplicate})`);
-assert.equal(run('a.students.length'),beforeStudents+1);
-assert.equal(run('a.classes[0].trialRoster.length'),2);
-
-// Another new student fills the last seat for this session, without changing other sessions.
-run("permissionChangeIdentity('sales')");
-const other=submitNew('另一学生','13912345678');
-run("permissionChangeIdentity('academic')");prepare(other);run(`a.classes[0].capacity=2;trialConfirm(${other})`);
-assert.equal(run('trialState.requests[0].status'),'待排班');
-assert.equal(run('a.students.length'),beforeStudents+1);
-set('trial-schedule-note','');run(`trialCancel(${other})`);assert.equal(run('trialState.requests[0].status'),'待排班');
-set('trial-schedule-note','家长时间不合适');run(`trialCancel(${other});trialConfirm(${other})`);
-assert.equal(run('trialState.requests[0].status'),'已取消');
-assert.equal(run('a.students.length'),beforeStudents+1);
-run('a.classes[0].capacity=20');
-
-// Existing enrolled students retain formal enrollment and can try a different class.
-run("permissionChangeIdentity('sales');trialStart();trialPickStudent(a.students[0].id)");
-student(run('a.students[0].name'),run('a.students[0].phone'));
-const originalStudent=run('JSON.stringify(a.students[0])');
-run('trialNextStep()');intention(1);run('trialNextStep();trialSubmit()');
-const existing=run('trialState.requests[0].id');
-run("permissionChangeIdentity('academic')");prepare(existing,1);run(`trialConfirm(${existing})`);
-assert.equal(run('trialState.requests[0].status'),'已排班');
-assert.equal(run('JSON.stringify(a.students[0])'),originalStudent);
-assert.equal(run('a.students.length'),beforeStudents+1);
-
-// Lead entry follows the same pending workflow and returns the final arrangement to its history.
-run("permissionChangeIdentity('admin');leadDetail(0,'myLeads');leadOpenAction('trial')");
-assert.equal(run('state.page'),'quickTrial');assert(!page().includes('modal-backdrop'));
-student(run('trialState.draft.name'),run('trialState.draft.phone'));run('trialNextStep()');intention();
-const stage=run('leadState.leads[0].stage');
-run('trialNextStep();trialSubmit()');
-const leadRequest=run('trialState.requests[0].id');
-assert.equal(run('leadState.leads[0].history.at(-1)[0]'),'预约试听');
-assert.equal(run('leadMyCategory(leadState.leads[0])'),'约试听');
-assert.equal(run('leadState.leads[0].stage'),stage);
-prepare(leadRequest);set('trial-confirm-time',time.replace('10:00','12:00'));run(`trialConfirm(${leadRequest})`);
+assert.equal(run('a.students.length'),1);assert.equal(run('a.students[0].status'),'试听');
+assert.equal(run('a.classes[0].students'),0);assert.equal(run('a.classes[0].trialRoster.length'),1);
+assert.equal(run('leadState.leads[0].studentId'),run('a.students[0].id'));
 assert.equal(run('leadState.leads[0].history.at(-1)[0]'),'试听排班');
-assert.equal(run('leadMyCategory(leadState.leads[0])'),'约试听');
-assert.equal(run('leadState.leads[0].stage'),stage);
-assert.equal(run('JSON.stringify(a.orders)'),beforeOrders);
-const confirmedId=run('a.classes[0].id'),roster=run('JSON.stringify(a.classes[0].trialRoster)');
-// Editing a class must preserve IDs and trial roster links.
-set('class-name',run('a.classes[0].name'));set('class-capacity','20');
-run('a.selectedClass=0;saveClass()');
-assert.equal(run('a.classes[0].id'),confirmedId);
-assert.equal(run('JSON.stringify(a.classes[0].trialRoster)'),roster);
-run("permissionChangeIdentity('sales');state.page='quickTrial';render()");
-assert(page().includes('预约试听'));assert(!page().includes('我的预约'));
-run("permissionChangeIdentity('finance');trialSubmit()");
-assert.equal(run("permissionCanVisit('quickTrial')"),false);
-// Exercise the exact HTML script order, including unrelated modules that wrap rendering.
-const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
-const root=path.resolve(__dirname,'..'),html=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const shell=vm.createContext({document:context.document,URL,location:{href:'https://prototype.example.test/'},setTimeout(){},setInterval(){return 1},clearInterval(){}});
-for(const match of html.matchAll(/<script(?: src="([^"]+)")?>([\s\S]*?)<\/script>/g)){
-  vm.runInContext(match[1]?fs.readFileSync(path.join(root,match[1]),'utf8'):match[2],shell);
-}
-for(const [route,title] of [['quickTrial','预约试听'],['trialManage','试听管理'],['quickEnroll','报名'],['classes','班级管理'],['students','正价学生']]){
-  vm.runInContext(`state.page='${route}';render()`,shell);
-  assert(page().includes(title));
-}
-assert(!html.includes('data-page="quickTrial"'),'试听通过线索流程进入，不恢复已取消的快捷入口');
-assert(!html.includes('data-page="quickEnroll"'),'报名通过业务页面进入，不恢复已取消的快捷入口');
-assert(html.includes('data-page="trialManage"'));
-console.log('PASS: trial wizard, pending-only submit, academic permission, duplicate/capacity/time checks, cancellation, confirmed class roster, student reuse, source lead history, no paid enrollment effects.');
+assert.equal(run('trialState.requests[0].confirmedBy'),'王敏');
+assert.equal(run('a.orders.length'),0);
+assert(node('#view').innerHTML.includes('查看我的试听'));assert(!node('#view').innerHTML.includes('等待教务确认'));handlers();
+run('trialReturnMyTrials()');assert.equal(run('state.page'),'myLeads');assert(node('#view').innerHTML.includes('试听学生甲'));
+// Capacity, interval collisions, stale sessions and all-or-none writes.
+run("testDraft();trialSubmit()");assert.equal(run('trialState.requests.length'),1);
+run("testDraft('试听学生甲','13888880001','B','B1');trialSubmit()");assert.equal(run('trialState.requests.length'),1);
+run("testDraft('试听学生乙','13888880002');trialSubmit()");assert.equal(run('trialState.requests.length'),2);
+run("testDraft('超额学生','13888880003');trialSubmit()");assert.equal(run('a.students.length'),2);
+run("testDraft('试听学生甲','13888880001','A','A2');trialSubmit()");assert.equal(run('a.students.length'),2);assert.equal(run('trialState.requests.length'),3);
+run("testDraft('整批失败','13888880004','A','A2');trialState.draft.classes.push({classId:'B',sessionId:'B2',preferredTime:date+'T14:00'});trialSubmit()");assert.equal(run('trialState.requests.length'),3);
+run("testDraft('过期课节','13888880005','A','A2');a.classes[0].sessions[1].cancelled=true;trialSubmit()");assert.equal(run('trialState.requests.length'),3);
+run("a.classes[0].sessions[1].cancelled=false");
+// Student/teacher lists and calendar preserve lesson and teacher scope.
+run("permissionChangeIdentity('admin');state.page='students';studentTermSetTab('试听学生');studentTermSetFilter('term','')");
+assert.equal(run('studentTermRows().length'),3);assert(node('#view').innerHTML.includes('试听学生甲'));
+run("state.page='learningActive';render();learningSelectTeacher('T1');studentTermSetTab('试听学生')");
+assert.equal(run('studentTermRows().length'),3);assert(node('#view').innerHTML.includes('role="tab"'));handlers();
+run("studentTermInspectTrial(trialState.requests[0].id)");assert(node('#view').innerHTML.includes('试听预约信息'));
+run("studentTermCloseTrial();learningOpenStudent(a.students[0].id,'沟通')");assert.equal(run('state.page'),'studentDetail');
+run("state.page='learningActive';render();learningSelectTeacher('T2');studentTermSetTab('试听学生')");assert.equal(run('studentTermRows().length'),0);
+run("state.page='schedule';render();scheduleView().date=date;scheduleView().campus='试听校区';render()");
+assert(node('#view').innerHTML.includes('试听学生甲[试听]'));
+assert.equal(run("attendanceLessonStudents(a.classes[0],attendanceLessons(a.classes[0])[0]).length"),2);
+assert.equal(run("attendanceLessonStudents(a.classes[0],attendanceLessons(a.classes[0])[1]).length"),1);
+assert.equal(run("attendanceLessonStudents(a.classes[1],attendanceLessons(a.classes[1])[0]).length"),0);
+// Trial attendance feeds outcomes without consuming formal tuition.
+run("state.page='attendance';attendanceOpenLesson(0,0)");
+node('#attendance-lesson-student-0').value='出勤';node('#attendance-lesson-student-1').value='旷课';run('attendanceSaveLesson()');
+assert.equal(run('a.attendance.length'),2);
+assert.equal(run('a.attendance.every(r=>r.trialRequestId&&r.consumptionCents===0)'),true);
+assert.equal(run('businessAttendanceRecords().length'),0);
+assert.equal(run("trialState.requests.find(r=>r.name==='试听学生甲'&&r.scheduledSessionId==='A1').attendance"),'已试听');
+assert.equal(run("trialState.requests.find(r=>r.name==='试听学生乙').attendance"),'未出勤');
+run('const trialSnapshot=businessSnapshot();trialState.requests=[];businessRestore(trialSnapshot)');assert.equal(run('trialState.requests.length'),3);
+const html=require('node:fs').readFileSync(require('node:path').resolve(__dirname,'../index.html'),'utf8');
+assert(!html.includes('data-page="trialManage"'));assert(!html.includes('data-page="quickTrial"'));
+console.log('PASS: direct trial placement, reuse/linkage, duplicate/overlap/capacity/stale guards, student/teacher lists, per-lesson roster, calendar label, attendance without billing and persistence.');

@@ -60,7 +60,7 @@ function leadRulesHTML(){
 }
 function leadRemindWarnings(){
   if(!permissionCanVisit('leadManage'))return;
-  const rows=leadState.leads.filter(l=>l.status==='warning');
+  const rows=leadManagePoolRows('预警中');
   rows.forEach(l=>l.history.push(leadHistoryEntry('提醒',`已记录提醒${l.owner}及时有效跟进。`)));
   toast(`已记录 ${rows.length} 条提醒（原型演示）`);
 }
@@ -68,11 +68,11 @@ const leadRulesPreviousManagePage=leadManagePage;
 leadManagePage=function(){
   const tab=leadState.manageTab;
   if(!['预警中','回收池'].includes(tab))return leadRulesPreviousManagePage();
-  const warning=tab==='预警中',status=warning?'warning':'recycle';
-  const rows=leadState.leads.map((l,index)=>({...l,index})).filter(l=>l.status===status);
-  const tabs=[['新线索',countLead('new')],['回收池',countLead('recycle')],['预警中',countLead('warning')],['冷宫池',countLead('cold')],['已分配',countLead('mine')+countLead('assigned')]];
-  return heading('线索管理','新线索、回收、预警、归档与已分配线索的管理入口')+`<div class="card pad">${leadSegments(tabs,tab,'setManageTab')}${leadRulesHTML()}<div class="lead-tip gold">${warning?'以下线索尚未达到回收条件，请及时有效跟进。 <button class="btn small right" onclick="leadRemindWarnings()">全部一键提醒</button>':'以下线索等待重新分配，交接时保留原有记录。'}</div>`+
-    aTable(warning?['学生 / 家长','年级 · 学科','归属招生','约定跟进','预警原因','最近有效沟通 / 计时起点','操作']:['学生 / 家长','年级','意向学科','原负责人','回收原因','详情','分配'],rows.map(l=>{
+  const warning=tab==='预警中';
+  const rows=leadManagePoolRows(tab);
+  const tabs=leadManageTabs();
+  return leadManageHeading('新线索、回收、预警、归档与已分配线索的管理入口')+`<div class="card pad">${leadSegments(tabs,tab,'setManageTab')}${leadRulesHTML()}<div class="lead-tip gold">${warning?'以下线索尚未达到回收条件，请及时有效跟进。 <button class="btn small right" onclick="leadRemindWarnings()">提醒筛选结果</button>':'以下线索等待重新分配，交接时保留原有记录。'}</div>`+
+    leadManagePoolFilterHTML(tab)+aTable(warning?['学生 / 家长','年级 · 学科','归属招生','约定跟进','预警原因','最近有效沟通 / 计时起点','操作']:['学生 / 家长','年级','意向学科','原负责人','回收原因','详情','分配'],rows.map(l=>{
       const m=leadRuleMetrics(l),reason=(warning?l.warningReasons:l.recycleReasons)||[];
       return warning?`<tr><td>${leadPerson(l)}</td><td>${esc(l.grade)} · ${esc(l.subject)}</td><td>${esc(l.owner)}</td><td>${esc(l.followupDeadlineAt?l.followupDeadlineAt.replace('T',' '):l.next||'未约定')}</td><td>${esc(reason.join('；')||'历史预警（时间待补充）')}${m.overdue?`<div class="help">约定已超时 ${Math.floor(m.overdue/leadRuleHour)} 小时</div>`:''}</td><td>${esc(new Date(m.lastEffective).toLocaleString('zh-CN'))}</td><td><button class="btn small" onclick="leadDetail(${l.index},'leadManage')">详情</button> <button class="btn small" onclick="remindLead(${l.index})">一键提醒</button></td></tr>`:
         `<tr><td>${leadPerson(l)}</td><td>${esc(l.grade)}</td><td>${esc(l.subject)}</td><td>${esc(l.previousOwner||'未记录')}</td><td>${esc(reason.join('；')||'历史回收记录')}</td><td><button class="btn small" onclick="leadDetail(${l.index},'leadManage')">详情</button></td><td><button class="btn small primary" onclick="leadState.selected=${l.index};leadState.modal='assign';leadRender()">分配</button></td></tr>`;

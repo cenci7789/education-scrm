@@ -22,8 +22,10 @@ trialState.requests=[{id:10,name:'试听新生',phone:'13212345678',grade:'小�
 nav('students');`);
 for(const tab of ['正价学生','试听学生'])assert(page().includes(tab));
 for(const text of ['工作学期','查看上期学生','下期报名学生','本期学生','新生录入','学生批量导入','跟进状态'])assert(!page().includes(text));
-for(const key of ['term','classKey','grade','subject','campus','teacher','format','search'])assert(page().includes(`id="student-filter-${key}"`));
-assert(page().includes('<th>授课老师</th>'));assert(page().includes('<th>教务老师</th>'));
+for(const key of ['classKey','grade','subject','campus','teacher','format','search'])assert(page().includes(`id="student-filter-${key}"`));
+assert(page().includes('id="teaching-term-trigger-students"'));
+for(const header of ['班级 / 学期','校区','授课老师','教务老师','本班状态'])assert(!page().includes(`<th>${header}</th>`));
+for(const action of ['沟通','学生档案'])assert(page().includes(`>${action}</button>`));
 assert.equal(run('studentTermView().term'),'');assert.equal(run('studentTermView().tab'),'正价学生');
 assert(page().includes('收尾同学'));assert(page().includes('春暑同学'));assert(page().includes('归档班学生'));assert(page().includes('待补信息同学'));
 assert.equal(run('studentTermRows().length'),7,'duplicate order is merged, all semesters and refunded students remain available');
@@ -33,7 +35,8 @@ run("a.classes[0].teacher='春季授课老师';a.classes[0].academicTeacher='春
 for(const name of ['春季授课老师','春季教务老师','暑期授课老师','暑期教务老师'])assert(page().includes(name));
 const filtered=()=>JSON.parse(run('JSON.stringify(studentTermFiltered(studentTermRows()))'));
 run("studentTermSetFilter('term','2026-暑期')");assert.equal(filtered().length,3);
-assert(node('#student-term-results').innerHTML.includes('共 2 位学生 · 3 条班级记录'));
+assert(node('#student-term-results').innerHTML.includes('共 2 位学生'));
+assert.equal((node('#student-term-results').innerHTML.match(/>春暑同学<\/strong>/g)||[]).length,1);
 run("studentTermSetFilter('campus','园区校区')");assert.equal(filtered().length,2);
 assert(!node('#student-term-results').innerHTML.includes('暑期2班'));
 run("studentTermSetFilter('classKey','id:summer');studentTermSetFilter('grade','2');studentTermSetFilter('subject','数学');studentTermSetFilter('teacher','暑期教务老师');studentTermSetFilter('format','直播');studentTermSetFilter('search','13812345678')");
@@ -49,8 +52,8 @@ run("studentTermResetFilters();studentTermSetFilter('search','shared')");assert.
 run("studentTermSetFilter('search','春暑同学')");assert.equal(filtered().length,3);
 run("studentTermOpenStudent('shared')");assert.equal(run('state.page'),'studentDetail');
 run("nav('students')");assert.equal(run('studentTermView().search'),'春暑同学');
-run("studentTermSetTab('试听学生')");assert.equal(run('studentTermView().search'),'');assert(page().includes('试听新生'));assert(page().includes('待排班'));assert(page().includes('已试听'));
-assert(page().includes('第1讲'));assert(page().includes('暑期教务老师'));
+run("studentTermSetTab('试听学生')");assert.equal(run('studentTermView().search'),'');assert(page().includes('试听新生'));
+run("studentTermOpenCourses('contact:试听新生|13212345678')");assert.equal(run('state.page'),'studentCourses');assert(page().includes('基本信息'));assert(page().includes('第1讲'));assert(page().includes('暑期教务老师'));run('studentTermCloseCourses()');
 assert.equal(run('a.students.length'),5,'pending trial is shown without creating a student dossier');
 run("studentTermSetFilter('teacher','暑期教务老师')");assert.equal(filtered().length,1);assert.equal(filtered()[0].requestId,10);
 run('studentTermInspectTrial(10)');assert(page().includes('role="dialog"'));run('studentTermCloseTrial()');

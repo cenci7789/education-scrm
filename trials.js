@@ -1,9 +1,9 @@
-// 预约申请和确认排班使用同一份原型数据；刷新页面会重置。
+// 招生预约后直接按课节排班，数据随业务快照保存在本机。
 const trialState=state.trials={requests:[],sequence:0,draft:null,step:1,filter:'待排班',modalId:null,successId:null};
 const trialPreviousRender=render;
 render=function(){if(['quickTrial','trialManage'].includes(state.page))trialRender();else trialPreviousRender()};
 function trialAllowed(page){if(permissionCanVisit(page))return true;toast('当前职位没有此操作权限');return false}
-function trialActor(){return {id:permissionState.identity,name:permissionState.identity==='admin'?'主管理员':permissionState.identity==='sales'?'王敏':permissionRole()?.name||'未配置职位'}}
+function trialActor(){return {id:permissionState.identity,name:leadCurrentOperator().name}}
 function trialBlank(){return {name:'',phone:'',grade:'',guardian:'',studentId:'',leadId:'',course:'',campus:'',preferredTime:'',classes:[],classFilters:null,note:'',schools:[{stage:'小学',name:'',entryYear:''}],gender:'',source:'',information:'',optionalOpen:false,actorId:trialActor().id}}
 function trialStart(lead=null){
   if(!trialAllowed('quickTrial'))return;
@@ -13,12 +13,18 @@ function trialStart(lead=null){
   trialState.draft=d;trialState.step=1;trialState.successId=null;leadState.modal=null;state.page='quickTrial';render();
 }
 function trialRender(){
+  if(state.page==='trialManage'){
+    trialState.modalId=null;
+    if(permissionCanVisit('myLeads')){leadState.mineTab='约试听';state.page='myLeads'}
+    else{state.page='students';studentTermView().tab='试听学生'}
+    render();return;
+  }
   const manage=state.page==='trialManage';
   document.querySelectorAll('.menu-item').forEach(e=>e.classList.toggle('active',e.dataset.page===state.page));
   document.querySelectorAll('.nav-toggle').forEach(e=>e.classList.remove('active-parent'));
-  document.querySelector(`[data-nav-toggle="${manage?'academic':'shortcuts'}"]`).classList.add('active-parent');
+  document.querySelector(`[data-nav-toggle="${manage?'academic':'leads'}"]`).classList.add('active-parent');
   if(manage)document.querySelector('[data-nav-toggle="business"]').classList.add('active-parent');
-  $('#crumb').textContent=manage?'教务 / 业务办理 / 试听管理':'快捷入口 / 预约试听';
+  $('#crumb').textContent=manage?'线索 / 我的线索 / 约试听':'线索 / 我的线索 / 预约试听';
   if(!manage&&(!trialState.draft||trialState.draft.actorId!==trialActor().id)){
     trialState.draft=trialBlank();trialState.step=1;trialState.successId=null;
   }
@@ -31,17 +37,17 @@ function trialInput(id,value,type='text',readonly=false){return `<input class="i
 function trialBookingPage(){
   const d=trialState.draft,step=trialState.step,success=trialState.requests.find(r=>r.id===trialState.successId&&r.actorId===trialActor().id);
   let body='';
-  if(success)body=`<div class="card pad trial-panel trial-success"><h2 class="section-title">试听预约已提交</h2><p>预约编号 ${success.id} · ${trialBadge(success.status)}</p><p>预约已进入试听管理，请等待教务确认班级、老师及实际试听时间。</p><button class="btn primary" onclick="trialStart()">继续预约</button>${permissionCanVisit('trialManage')?` <button class="btn" onclick="state.page='trialManage';render()">查看试听管理</button>`:''}</div>`;
+  if(success)body=`<div class="card pad trial-panel trial-success"><h2 class="section-title">试听预约已提交</h2><p>预约编号 ${success.id} · ${trialBadge(success.status)}</p><p>已按所选课节完成排班，学生已进入对应班级试听名单。</p><button class="btn primary" onclick="trialStart()">继续预约</button>${permissionCanVisit('myLeads')?` <button class="btn" onclick="trialReturnMyTrials()">查看我的试听</button>`:''}</div>`;
   else{
     let fields='';
     if(step===1)fields=trialStudentForm();
     if(step===2)fields=trialSelectedClassesForm();
-    if(step===3)fields=`<div class="trial-summary-card">${trialSummary(d)}</div><p class="notice" style="margin-top:20px">提交后进入“试听管理 · 待排班”。教务确认排班后，学生才正式进入班级试听。</p>`;
+    if(step===3)fields=`<div class="trial-summary-card">${trialSummary(d)}</div><p class="notice" style="margin-top:20px">提交后直接按所选班级和课节入班试听，无需教务审批。</p>`;
     body=`<div class="steps">${['学生信息','试听意向','确认提交'].map((label,i)=>`${i?'<span class="step-line"></span>':''}<span class="step ${step===i+1?'active':step>i+1?'done':''}"><i>${step>i+1?'✓':i+1}</i>${label}</span>`).join('')}</div><div class="card trial-panel${step===2?' trial-intention-shell':''}">${step===1?aTabs(['单个预约','批量预约'],'单个预约','trialBookingTab'):''}<div class="pad">${fields}<div class="form-actions">
       ${step>1?'<button class="btn" onclick="trialPreviousStep()">上一步</button>':d.leadId?'<button class="btn" onclick="trialReturnLead()">返回线索详情</button>':''}
       <button class="btn primary" id="trial-next" onclick="${step===3?'trialSubmit()':'trialNextStep()'}">${step===3?'提交预约':'下一步'}</button></div></div></div>`;
   }
-  return heading('预约试听','登记学生与试听意向，由教务统一确认排班')+body+(d.studentPicker?trialStudentPicker():'');
+  return heading('预约试听','登记学生、选择班级和课节，直接完成试听排班')+body+(d.studentPicker?trialStudentPicker():'');
 }
 function trialPickStudent(id){
   const s=a.students.find(s=>s.id===id),d=trialState.draft;
@@ -90,21 +96,26 @@ function trialSubmit(){
   const d=trialState.draft;
   if(d.actorId!==trialActor().id||!trialValidStudent(d)||!trialValidIntention(d)||!leadRecordReadyToSave())return;
   const intentions=trialIntentionItems(d);
-  if(intentions.some(item=>trialState.requests.some(r=>r.status==='待排班'&&!r.salesReturnedAt&&!r.supersededBy&&r.attendance!=='未出勤'&&trialSamePerson(r,d)&&(r.requestedClassId?r.requestedClassId===item.requestedClassId:r.course===item.course&&r.campus===item.campus)))){toast('所选班级已有待排班预约，请移除重复班级后提交');return}
+  const planned=[];
+  for(const item of intentions){const request={...d,...item};const error=trialPlacementError(request,planned);if(error){toast(error);return}planned.push(request)}
+  if(intentions.some(item=>trialState.requests.some(r=>r.status==='待排班'&&r.id!==d.replaceRequestId&&!r.salesReturnedAt&&!r.supersededBy&&r.attendance!=='未出勤'&&trialSamePerson(r,d)&&(r.requestedClassId?r.requestedClassId===item.requestedClassId:r.course===item.course&&r.campus===item.campus)))){toast('所选班级已有待排班预约，请移除重复班级后提交');return}
   const files=(leadRecordDraft?.context==='trial'?leadRecordDraft.items:[]).map(item=>({fileName:item.file.name,url:item.url,size:item.file.size,kind:item.kind,transcript:item.transcript||''}));
   const actor=trialActor(),requests=intentions.map(item=>{
     const {classes,classFilters,classFilterGrade,studentPicker,sessionPicker,rebookRequestId,...studentData}=d;
     const r={...studentData,...item,schools:d.schools.map(s=>({...s})),files,id:++trialState.sequence,status:'待排班',actorId:actor.id,actor:actor.name,submittedAt:new Date().toLocaleString('zh-CN'),classId:null,scheduledTime:'',confirmedBy:'',confirmedAt:''};
     r.academicTerm=studentClassTerm(a.classes.find(c=>c.id===r.requestedClassId),r);
     if(r.information||files.length)r.informationRecord=leadHistoryEntry('试听预约信息',r.information||'添加了试听预约附件',{files});
-    trialLog(r,'预约试听',`提交${r.requestedClassName}试听申请，意向校区：${r.campus}，意向时间：${r.preferredTime?r.preferredTime.replace('T',' '):'待教务安排'}。待教务确认排班。${r.note?'备注：'+r.note:''}${r.information?'\n信息记录：'+r.information:''}`,{files});
+    trialLog(r,'预约试听',`提交${r.requestedClassName}试听申请，意向校区：${r.campus}，意向时间：${r.preferredTime?r.preferredTime.replace('T',' '):'待教务安排'}。按所选课节直接排班。${r.note?'备注：'+r.note:''}${r.information?'\n信息记录：'+r.information:''}`,{files});
     return r;
   });
   trialState.requests.unshift(...requests);
+  requests.forEach(trialPlaceRequest);
+  const replaced=trialState.requests.find(r=>r.id===d.replaceRequestId&&r.leadId===d.leadId&&r.status==='待排班');
+  if(replaced){replaced.supersededBy=requests.map(r=>r.id);requests.forEach(r=>r.replacesRequestId=replaced.id);trialLog(replaced,'更新排班','招生已重新选定课节并直接入班，原预约记录保留。')}
   const prior=trialState.requests.find(r=>r.id===d.rebookRequestId&&r.leadId===d.leadId&&r.attendance==='未出勤');
   if(prior){prior.supersededBy=requests.map(r=>r.id);requests.forEach(r=>r.rebookedFrom=prior.id);trialLog(prior,'再次约课','未出勤后已重新提交试听预约，原课节出勤记录保留。')}
   if(leadRecordDraft?.context==='trial'){leadRecordDraft.items=[];leadDisposeRecord()}
-  trialState.successId=requests[0].id;render();toast(`已提交${requests.length}条预约，等待教务确认排班`);
+  trialState.successId=requests[0].id;render();toast(`已完成${requests.length}条试听排班，学生已进入对应课节`);
 }
 function trialLog(r,title,text,attachment={}){
   const lead=leadState.leads.find(l=>l.leadId===r.leadId);
@@ -112,7 +123,7 @@ function trialLog(r,title,text,attachment={}){
 }
 function trialBadge(status){return `<span class="badge ${status==='待排班'?'trial-pending':status==='已取消'?'off':''}">${esc(status)}</span>`}
 function trialSummary(r){
-  const studentFields=[['学生姓名',r.name],['联系电话',leadDetailPhone(r.phone)],['就读年级',r.grade||'未填写'],['公立学校',(r.schools||[]).filter(s=>s.name).map(s=>s.stage+' · '+s.name+(s.entryYear?' · '+s.entryYear+'年入学':'')).join('；')||'未填写'],['学生性别',r.gender||'未填写'],['咨询家长',r.guardian||'未填写']];
+  const studentFields=[['学生姓名',r.name],['联系电话',leadDetailPhone(r.phone)],['就读年级',r.grade||'未填写'],['公立学校',(r.schools||[]).filter(s=>s.name).map(s=>s.stage+' · '+s.name+(s.entryYear?' · '+s.entryYear+'年入学':'')).join('；')||'未填写'],['学生性别',r.gender||'未填写'],['招生家长',r.guardian||'未填写']];
   const bookingFields=[['来源渠道',r.source||'未填写'],...(Array.isArray(r.classes)?[]:[['预约班级',r.requestedClassName||'未指定'],['预约课节',r.requestedSessionName||'未指定'],['试听课程',r.course],['意向校区',r.campus],['试听时间',r.preferredTime?.replace('T',' ')||'待教务安排']])];
   const fieldsHTML=fields=>`<dl class="trial-confirm-grid">${fields.map(([label,value,full])=>`<div class="trial-confirm-field${full?' full':''}"><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>`;
   const files=r.files||(r===trialState.draft&&leadRecordDraft?.context==='trial'?leadRecordDraft.items.map(item=>({fileName:item.file.name,url:item.url,kind:item.kind})):[]);
@@ -197,8 +208,7 @@ function trialRosterHTML(list){
   if(!list.length)return '';
   return `<section class="card pad trial-roster"><h2 class="section-title">试听名单（已确认排班）</h2><p class="help">按试听讲次列出学生；试听名额按实际时间计算，正式在班人数保持不变。</p>${aTable(['学生','班级','课程','试听时间','老师 / 教室'],list.map(r=>{const c=a.classes.find(c=>c.id===r.classId);return `<tr><td>${esc(r.name)}</td><td>${esc(c?.name||'班级已移除')}</td><td>${esc(r.course)}</td><td>${esc(r.scheduledTime.replace('T',' '))}</td><td>${esc(r.teacher)} / ${esc(r.room||'待定')}</td></tr>`}))}</section>`;
 }
-const trialOriginalClassesPage=classesPage,trialOriginalClassForm=classForm,trialOriginalStudentDetail=studentDetail;
-classesPage=function(){return trialOriginalClassesPage()+trialRosterHTML(trialState.requests.filter(r=>r.status==='已排班'))};
+const trialOriginalClassForm=classForm,trialOriginalStudentDetail=studentDetail;
 classForm=function(){return trialOriginalClassForm()+trialRosterHTML(trialState.requests.filter(r=>r.status==='已排班'&&r.classId===a.classes[a.selectedClass]?.id))};
 studentDetail=function(){
   const s=a.students[a.selectedStudent]||a.students[0],list=trialState.requests.filter(r=>r.status==='已排班'&&r.studentId===s.id);

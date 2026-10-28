@@ -19,19 +19,24 @@ run(`permissionChangeIdentity('sales');
     {leadId:'other-trial',status:'待排班'}
   ];
   leadState.mineTab='可跟进';leadState.mineSearch='';state.page='myLeads';render();`);
-assert.deepEqual(JSON.parse(run('JSON.stringify(myLeadCategories)')),['可跟进','约试听','已报名','冷宫池']);
+assert.deepEqual(JSON.parse(run('JSON.stringify(myLeadCategories)')),['可跟进','约试听','已报名']);
 assert.equal(run('myLeadRows().length'),3);
 assert.equal(run('leadMyStage(leadState.leads[0])'),'新线索');
 assert.equal(run('leadMyStage(leadState.leads[1])'),'跟进中');
 assert.equal(run('leadMyStage(leadState.leads[8])'),'新线索');
 assert(!run('myLeadResults()').includes('试听学生'));assert(!run('myLeadResults()').includes('已报名学生'));
 assert(!run('myLeadResults()').includes('新分配</span>'));
-for(const [tab,count] of [['可跟进',3],['约试听',1],['已报名',1],['冷宫池',1]]){
+for(const [tab,count] of [['可跟进',3],['约试听',1],['已报名',1]]){
   run(`setMineTab('${tab}')`);
   assert.equal(run('myLeadRows().length'),count,tab);
   assert(page().includes(`${tab} <small>${count}</small>`));
   assert(!run('myLeadResults()').includes('他人的'));
 }
+run("setMineTab('冷宫池')");
+assert.equal(run('leadState.mineTab'),'可跟进','old saved tab falls back to an available tab');
+assert(!page().includes("setMineTab('冷宫池')"));
+assert(!run('myLeadResults()').includes('冷宫学生'));
+assert.equal(run('leadState.leads[4].status'),'cold','archived data retained');
 run("setMineTab('可跟进');myLeadSearch('已约')");
 assert.equal(run('myLeadRows().length'),1);
 assert(node('#my-lead-results').innerHTML.includes('共 1 条线索'));
@@ -46,4 +51,4 @@ run(`leadAppendCommunication(leadState.leads[0],'有效沟通但未约时间',[]
 assert.equal(run('leadState.leads[0].stage'),'新线索');
 run(`leadAppendCommunication(leadState.leads[0],'约定回访',[],{result:'有效沟通',channel:'电话',intent:'中意向',nextTime:'2027-12-01T10:00'})`);
 assert.equal(run('leadState.leads[0].stage'),'跟进中');
-console.log('PASS: four exclusive owner-scoped categories/counts, scheduled-followup stages, unique trial lead counting, cancellation fallback, enrollment/cold precedence, reassignment and search.');
+console.log('PASS: three visible owner-scoped categories, old cold-tab fallback, archived data retained, followup stages, trial counting, cancellation fallback, reassignment and search.');

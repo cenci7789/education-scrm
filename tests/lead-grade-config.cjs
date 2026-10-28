@@ -10,9 +10,9 @@ run(`leadState.leads=[{name:'测试',grade:'旧年级',schools:[{stage:'小学',
 assert.equal(run('leadState.leads[0].grade'),'1年级');
 run('state.config.年级[0][3]=false;leadRefreshSchoolGrades()');assert.equal(run('leadState.leads[0].grade'),'1年级');
 run('state.config.年级=[];leadRefreshSchoolGrades()');assert.equal(run('leadState.leads[0].grade'),'1年级');assert(run('leadGradeSelect()').includes('请先在教学配置中启用年级'));
-run(`state.config.年级=[['学前班',true,'启蒙',true]];state.page='quickRegister';batchImportOpen('lead')`);
+run(`state.config.年级=[['学前班',true,'启蒙',true]];state.page='myLeads';batchImportOpen('lead')`);
 const headers=json('batchImportSchemas.lead.headers');
-function preview(grade){node('#batch-import-text').value=headers.join(',')+'\n'+['年级导入测试','13855550001',grade,'男','妈妈','','数学','主动来电','统一分配','','','','',''].join(',');run('batchImportPreview()');return json('batchImportState.preview')}
+function preview(grade){node('#batch-import-text').value=headers.join(',')+'\n'+['年级导入测试','13855550001',grade,'男','妈妈','数学','主动来电','统一分配','','','','',''].join(',');run('batchImportPreview()');return json('batchImportState.preview')}
 assert.deepEqual(preview('学前班').errors,[]);assert.equal(run('batchImportState.preview.plans[0].data.grade'),'学前班');
 assert(preview('小一').errors.some(e=>e.includes('已启用的年级')));
 run('state.config.年级[0][3]=false');assert(preview('学前班').errors.some(e=>e.includes('已启用的年级')));

@@ -34,7 +34,7 @@ run(`leadState.selected=2;state.page='leadManage';leadState.manageTab='回收池
 run("leadRender();leadSelectAssignee(state.staff.findIndex(p=>p.name==='王敏'));assignLead()");
 assert.equal(run('leadState.leads[2].status'),'mine');assert.equal(run('leadState.leads[2].next'),'未约定');
 run('leadEvaluateRules()');assert.equal(run('leadState.leads[2].status'),'mine','assignment restarts the cycle');
-run(`leadState.selected=2;leadState.modal='publicPool'`);node('#lead-public-reason').value='重新安排资源';run('leadReturnPublicPool()');
+run(`leadState.selected=2;leadState.modal='publicPool'`);node('#lead-public-reason').value='重新安排资源';node('#lead-public-campus').value=run('state.campuses.find(c=>c.active).name');run('leadReturnPublicPool()');
 assert.equal(run('leadState.leads[2].status'),'recycle');assert.equal(run('leadState.leads[2].recycleReasons[0]'),'销售主动回公海');
 assert.equal(run('leadState.leads[2].history.at(-1)[0]'),'回公海');
 assert(page().includes('销售主动回公海'));assert(!page().includes('15 天无新沟通记录'));

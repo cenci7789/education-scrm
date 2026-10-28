@@ -20,7 +20,7 @@ function leadHistoryOperatorHTML(attachment){
   return `<span class="lead-event-operator">操作人：${esc(label)}</span>`;
 }
 function leadRegistrationBody(lead,assignment){
-  return `就读年级：${lead.grade||'未填'}，意向校区：${lead.campus||'待定'}，意向学科：${lead.subject||'待定'}\n分配咨询：${assignment}${lead.note?'\n'+lead.note:''}`;
+  return `${lead.ownershipCampus?'归属校区：'+lead.ownershipCampus+'\n':''}就读年级：${lead.grade||'未填'}${lead.campus&&lead.campus!=='待定'?'，意向校区：'+lead.campus:''}，意向学科：${lead.subject||'待定'}\n${lead.registrationChannel==='nonSales'?'分配状态：'+lead.ownershipCampus+'招生组长待分配':'分配招生：'+assignment}${lead.note?'\n'+lead.note:''}`;
 }
 function leadRegistrationAssignment(mode,assignee){
   return mode==='uniform'?'统一分配':mode==='specific'?(Array.isArray(assignee)?assignee:[assignee]).map(person=>leadIdentityLabel(leadStaffIdentity(person))).join('、'):leadIdentityLabel(leadCurrentOperator());

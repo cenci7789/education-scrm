@@ -1,15 +1,16 @@
-const myLeadCategories=['可跟进','约试听','已报名','冷宫池'];
+const myLeadCategories=['可跟进','约试听','已报名'];
 function leadHasNextFollowup(lead){
   return /\d{1,2}:\d{2}/.test(String(lead.next||''))&&!['未约定','已归档'].includes(lead.next);
 }
-function leadMyCategory(lead){
-  if(!leadHasOwner(lead)||['new','recycle'].includes(lead.status))return '';
+function leadWorkflowCategory(lead){
+  if(!leadOwnerNames(lead).length||['new','recycle'].includes(lead.status))return '';
   if(lead.status==='cold')return '冷宫池';
   if(lead.stage==='已报名')return '已报名';
   const requests=lead.leadId?trialState.requests.filter(r=>r.leadId===lead.leadId):[];
   if(requests.some(myTrialActive)||(!requests.length&&lead.stage==='约试听'))return '约试听';
   return '可跟进';
 }
+function leadMyCategory(lead){return leadHasOwner(lead)?leadWorkflowCategory(lead):''}
 function leadMyStage(lead){
   const category=leadMyCategory(lead);
   return category==='可跟进'?(leadHasNextFollowup(lead)?'跟进中':'新线索'):category;
@@ -17,7 +18,7 @@ function leadMyStage(lead){
 function myLeadRows(){
   const search=String(leadState.mineSearch||'').trim().toLowerCase();
   return leadState.leads.map((lead,index)=>({...lead,index})).filter(lead=>
-    leadMyCategory(lead)===leadState.mineTab&&(!search||[lead.name,lead.phone].some(value=>String(value||'').toLowerCase().includes(search))));
+    leadMyCategory(lead)===leadState.mineTab&&(leadState.mineTab!=='已报名'||leadEnrolledMatches(lead,'myLeads'))&&(!search||[lead.name,lead.phone].some(value=>String(value||'').toLowerCase().includes(search))));
 }
 function myLeadResults(){
   const list=myLeadRows();
@@ -50,7 +51,7 @@ myLeadsPage=function(){
     冷宫池:'已归档的线索，保留原有信息和跟进记录。'
   };
   return heading('我的线索','查看本人负责的线索、下一次跟进时间和沟通记录')+
-    `<div class="card pad"><div class="toolbar"><div class="toolbar-left">${leadSegments(tabs,leadState.mineTab,'setMineTab')}<input class="input" style="width:230px" placeholder="搜索姓名或电话" value="${esc(leadState.mineSearch||'')}" oninput="myLeadSearch(this.value)"></div><div class="toolbar-right"><button class="btn" onclick="leadOpenForm('create','import')">批量导入</button><button class="btn primary" onclick="leadOpenForm()">+ 线索登记</button></div></div><div id="my-lead-results">${myLeadResults()}</div><p class="help">${help[leadState.mineTab]}</p></div>`+myTrialActionModal();
+    `<div class="card pad"><div class="toolbar"><div class="toolbar-left">${leadSegments(tabs,leadState.mineTab,'setMineTab')}<input class="input" style="width:230px" placeholder="搜索姓名或电话" value="${esc(leadState.mineSearch||'')}" oninput="myLeadSearch(this.value)"></div><div class="toolbar-right"><button class="btn" onclick="leadOpenForm('create','import')">批量导入</button><button class="btn primary" onclick="leadOpenForm()">+ 线索登记</button></div></div>${leadState.mineTab==='已报名'?leadEnrolledDateHTML('myLeads'):''}<div id="my-lead-results">${myLeadResults()}</div><p class="help">${help[leadState.mineTab]}</p></div>`+myTrialActionModal();
 };
 function myEnrolledCourses(lead){
   const linkedOrders=a.orders.filter(o=>lead.leadId&&o.originLeadId===lead.leadId);
@@ -76,10 +77,10 @@ function myEnrolledCourses(lead){
   });
   return rows;
 }
-function myEnrolledResults(list){
-  return aTable(['学生 / 家长','年级','已报课程（班级）','当前状态','操作'],list.flatMap(l=>{
+function myEnrolledResults(list,origin='myLeads'){
+  return aTable(['学生 / 家长','年级','已报课程（班级）','当前状态','报名日期','操作'],list.flatMap(l=>{
     const courses=myEnrolledCourses(l),rows=courses.length?courses:[null];
-    return rows.map((item,i)=>`<tr>${i?'':`<td rowspan="${rows.length}">${leadPerson(l)}</td><td rowspan="${rows.length}">${esc(l.grade)}</td>`}<td>${item?`<strong>${esc(item.name)}</strong>${item.course&&item.course!==item.name?`<div class="help">${esc(item.course)}</div>`:''}`:'<span class="help">暂无报名班级记录</span>'}</td><td>${item?`<span class="badge ${item.status==='已退费'?'off':''}">${item.status}</span>`:'—'}</td>${i?'':`<td rowspan="${rows.length}"><button class="btn small" onclick="leadDetail(${l.index},'myLeads')">详情</button></td>`}</tr>`);
+    return rows.map((item,i)=>`<tr>${i?'':`<td rowspan="${rows.length}">${leadPerson(l)}</td><td rowspan="${rows.length}">${esc(l.grade)}</td>`}<td>${item?`<strong>${esc(item.name)}</strong>${item.course&&item.course!==item.name?`<div class="help">${esc(item.course)}</div>`:''}`:'<span class="help">暂无报名班级记录</span>'}</td><td>${item?`<span class="badge ${item.status==='已退费'?'off':''}">${item.status}</span>`:'—'}</td>${i?'':`<td rowspan="${rows.length}">${leadEnrolledMatchingDates(l,origin).map(esc).join('<br>')||'未记录'}</td><td rowspan="${rows.length}"><button class="btn small" onclick="leadDetail(${l.index},'${origin}')">详情</button></td>`}</tr>`);
   }))+(!list.length?'<div class="empty">暂无符合条件的已报名学生</div>':'')+`<div class="data-bar" role="status">共 ${list.length} 位学生</div>`;
 }
 function myTrialActive(r){return ['待排班','已排班'].includes(r.status)&&!r.salesReturnedAt&&!r.supersededBy}
@@ -112,7 +113,7 @@ function myTrialResults(list){
     return rows.map((r,i)=>{
       const t=r?myTrialTiming(r):null,status=r?myTrialStatus(r):'待确认课节';
       const action=r&&Number.isFinite(r.id)?`<button class="btn small" onclick="myTrialMark(${r.id},'已试听')">已试听</button> <button class="btn small" onclick="myTrialMark(${r.id},'未出勤')">未出勤</button>`:'';
-      return `<tr>${i?'':`<td rowspan="${rows.length}">${leadPerson(l)}</td><td rowspan="${rows.length}">${esc(l.grade)}</td>`}<td>${t?`${esc(t.className||r.course||'班级待确认')}-${esc(t.name)}（${esc(myTrialTimeText(t))}）`:'暂无课节信息'}${r?.status==='待排班'?'<div class="help">待教务确认排班</div>':''}</td><td>${t?esc(myTrialTimeText(t)):'—'}</td><td>${status==='待确认出勤'?action:trialBadge(status)}${status==='未出勤'&&Number.isFinite(r?.id)?` <button class="btn small" onclick="myTrialAskRebook(${r.id})">再次约课</button>`:''}</td>${i?'':`<td rowspan="${rows.length}"><div class="my-trial-actions"><button class="btn small" onclick="leadDetail(${l.index},'myLeads')">跟进</button><button class="btn small" onclick="myTrialOpenReturn(${l.index})">放回线索</button></div></td>`}</tr>`;
+      return `<tr>${i?'':`<td rowspan="${rows.length}">${leadPerson(l)}</td><td rowspan="${rows.length}">${esc(l.grade)}</td>`}<td>${t?`${esc(t.className||r.course||'班级待确认')}-${esc(t.name)}（${esc(myTrialTimeText(t))}）`:'暂无课节信息'}${r?.status==='待排班'?'<div class="help">待招生选择课节</div>':''}</td><td>${t?esc(myTrialTimeText(t)):'—'}</td><td>${status==='待确认出勤'?action:trialBadge(status)}${status==='未出勤'&&Number.isFinite(r?.id)?` <button class="btn small" onclick="myTrialAskRebook(${r.id})">再次约课</button>`:''}</td>${i?'':`<td rowspan="${rows.length}"><div class="my-trial-actions">${requests.filter(item=>item.status==='待排班').map(item=>`<button class="btn small primary" onclick="myTrialSchedulePending(${item.id})">选择课节排班</button>`).join('')}<button class="btn small" onclick="leadDetail(${l.index},'myLeads')">跟进</button><button class="btn small" onclick="myTrialOpenReturn(${l.index})">放回线索</button></div></td>`}</tr>`;
     });
   }))+(!list.length?'<div class="empty">暂无符合条件的试听学生</div>':'')+`<div class="data-bar" role="status">共 ${list.length} 位学生</div>`;
 }

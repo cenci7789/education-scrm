@@ -29,9 +29,16 @@ function leadRender(){
   document.querySelectorAll('.menu-item').forEach(e=>e.classList.toggle('active',e.dataset.page===active));
   document.querySelectorAll('[data-nav-toggle]').forEach(e=>e.classList.remove('active-parent'));
   document.querySelector('[data-nav-toggle="'+(leadIsRegistrationDetail()?'shortcuts':'leads')+'"]').classList.add('active-parent');
-  $('#crumb').textContent=(leadIsRegistrationDetail()?'快捷入口 / 线索登记 / ':'线索 / ')+leadPages[p];
+  $('#crumb').textContent=(leadIsRegistrationDetail()?'快捷入口 / 线索登记（非招生） / ':'线索 / ')+leadPages[p];
   $('#view').innerHTML=({leadTodo:leadTodoPage,myLeads:myLeadsPage,leadManage:leadManagePage,leadDetail:leadDetailPage})[p]()+ (leadState.modal?leadModalPage():'');
   if(leadState.modal==='form'&&leadState.formMode==='edit')leadFillBasicInfo();
+}
+function leadNonSalesEntry(){return state.page==='quickRegister'||(state.page==='leadForm'&&leadState.formReturnPage==='quickRegister')}
+function leadCampusQueueLabel(lead){return lead.ownershipCampus&&lead.status==='new'?lead.ownershipCampus+'招生组长（待分配）':lead.owner}
+function leadRouteToCampus(lead,campus){
+  lead.ownershipCampus=campus;lead.registrationChannel='nonSales';
+  lead.assignmentQueue={campus,role:'校区招生组长'};
+  leadSetOwners(lead,[]);
 }
 function leadOpenForm(mode='create',tab='single'){
   if(state.page==='leadForm'){leadSwitchRegistration(tab);return}
@@ -52,15 +59,15 @@ function leadRenderForm(){
   document.querySelectorAll('.menu-item').forEach(e=>e.classList.toggle('active',e.dataset.page===active));
   document.querySelectorAll('[data-nav-toggle]').forEach(e=>e.classList.remove('active-parent'));
   document.querySelector('[data-nav-toggle="'+group+'"]').classList.add('active-parent');
-  const title='线索登记';
+  const title=group==='shortcuts'?'线索登记（非招生）':'线索登记';
   $('#crumb').textContent=(group==='shortcuts'?'快捷入口':'线索')+' / '+title;
-  $('#view').innerHTML='<button class="btn back-link" onclick="leadCloseForm()">← 返回'+esc(leadPages[origin]||'列表')+'</button>'+heading(title,'填写学生信息并分配负责咨询人员')+
+  $('#view').innerHTML='<button class="btn back-link" onclick="leadCloseForm()">← 返回'+esc(leadPages[origin]||'列表')+'</button>'+heading(title,group==='shortcuts'?'填写学生信息，提交至归属校区招生组长等待分配':'填写学生信息并分配负责招生人员')+
     '<div class="card pad lead-registration-page"><div class="lead-segments"><button data-registration-tab="single" onclick="leadSwitchRegistration(\'single\')">单条登记</button><button data-registration-tab="import" onclick="leadSwitchRegistration(\'import\')">批量导入</button></div><div id="lead-registration-single">'+leadFormContent(true)+'</div><div id="lead-registration-import"><p class="muted">下载 Excel 模板，按表头填写学生、家长、来源和分配信息，每行填写一名学生。</p><div class="empty"><a class="btn primary lead-import-download" href="templates/lead-import-template.xlsx" download="线索导入模板.xlsx">下载导入模板</a><p class="help">Excel（.xlsx） · 含空白填写表与字段说明</p></div><p class="help">当前可下载模板，文件上传导入功能待接入。</p><div class="form-actions"><button class="btn" onclick="leadCloseForm()">返回列表</button></div></div></div>';
   leadSwitchRegistration(leadState.registrationTab||'single');
 }
 function leadFillBasicInfo(){
   const lead=leadState.leads[leadState.selected];
-  ['grade','source','guardian','campus'].forEach(key=>{
+  ['grade','source','guardian'].forEach(key=>{
     const select=$('#lead-'+key),value=key==='grade'?(leadConfiguredGrade(lead.grade)||lead.grade||''):lead[key]||'';
     if(value&&select.options&&![...select.options].some(option=>option.value===value))select.insertAdjacentHTML('beforeend',`<option value="${esc(value)}" ${key==='grade'?'disabled':''}>${esc(value)}${key==='grade'?'（历史年级）':''}</option>`);
     select.value=value;
@@ -85,8 +92,65 @@ function leadSegments(items,current,fn){return `<div class="lead-segments">${ite
 function leadTodoPage(){let list=leadState.leads.map((l,i)=>({...l,index:i})).filter(l=>leadHasOwner(l)&&(l.stage.includes('新')||l.next.startsWith('今天'))).sort((x,y)=>(x.stage.includes('新')?0:1)-(y.stage.includes('新')?0:1));return heading('今日待办','先处理新线索，再跟进今天约定沟通的家长')+`<div class="lead-stats"><div class="lead-stat"><span>我的线索</span><strong>${leadState.leads.filter(l=>leadHasOwner(l)&&l.status==='mine').length}</strong></div><div class="lead-stat"><span>新线索</span><strong>${list.filter(l=>l.stage.includes('新')).length}</strong></div><div class="lead-stat"><span>今日待沟通</span><strong>${list.filter(l=>l.next.startsWith('今天')).length}</strong></div></div><div class="card pad"><div class="toolbar"><h2 class="section-title" style="margin:0">待办列表</h2><button class="btn" onclick="leadNav('myLeads')">查看我的线索</button></div>${aTable(['学生 / 家长','年级 · 意向学科','阶段','下次跟进','操作'],list.map(l=>`<tr><td>${leadPerson(l)}</td><td>${l.grade} · ${l.subject}</td><td>${leadPill(l.stage)}</td><td>${esc(l.next)}</td><td><button class="btn small" onclick="leadDetail(${l.index},'leadTodo')">查看并跟进</button></td></tr>`))}</div>`}
 function myLeadsPage(){let tabs=[['可跟进',leadState.leads.filter(l=>l.status==='mine'&&l.stage!=='已报名'&&l.status!=='cold').length],['已报名',leadState.leads.filter(l=>l.stage==='已报名').length],['冷宫池',leadState.leads.filter(l=>l.status==='cold'&&leadHasOwner(l)).length]];let list=leadState.leads.map((l,i)=>({...l,index:i})).filter(l=>leadState.mineTab==='可跟进'?l.status==='mine':leadState.mineTab==='已报名'?l.stage==='已报名':l.status==='cold'&&leadHasOwner(l));return heading('我的线索','查看本人负责的线索、下一次跟进时间和沟通记录')+`<div class="card pad"><div class="toolbar"><div class="toolbar-left">${leadSegments(tabs,leadState.mineTab,'setMineTab')}<input class="input" style="width:230px" placeholder="搜索姓名或电话" oninput="filterRows(this.value)"></div><div class="toolbar-right"><button class="btn" onclick="leadOpenForm('create','import')">批量导入</button><button class="btn primary" onclick="leadOpenForm()">+ 线索登记</button></div></div>${aTable(['学生 / 家长','年级','意向学科','阶段','意向度','下次跟进时间','操作'],list.map(l=>`<tr><td>${leadPerson(l)}</td><td>${l.grade}</td><td>${l.subject}</td><td>${leadPill(l.stage)}</td><td>${leadPill(leadIntentLabel(l))}</td><td>${esc(l.next)}</td><td><button class="btn small" onclick="leadDetail(${l.index},'myLeads')">详情</button></td></tr>`))}<div class="data-bar">共 ${list.length} 条线索</div><p class="help">可跟进阶段：新线索 → 新分配 → 跟进中。到期的下次跟进时间会排在前面。</p></div>`}
 function setMineTab(t){leadState.trialAction=null;leadState.mineTab=t;leadRender()}
-function leadManagePage(){let tabs=[['新线索',countLead('new')],['回收池',countLead('recycle')],['预警中',countLead('warning')],['冷宫池',countLead('cold')],['已分配',countLead('mine')+countLead('assigned')]];let t=leadState.manageTab;let list=leadState.leads.map((l,i)=>({...l,index:i})).filter(l=>t==='新线索'?l.status==='new':t==='回收池'?l.status==='recycle':t==='预警中'?l.status==='warning':t==='冷宫池'?l.status==='cold':l.status==='mine'||l.status==='assigned');let intro={'新线索':'统一分配或手工登记时未指定招生岗的线索，可查看档案并分配。','回收池':'长期未有效沟通的线索在这里等待重新分配；交接时保留全部跟进记录。','预警中':'超过约定跟进时间仍无新跟进记录的线索，需要联系负责招生人员。','冷宫池':'已归档的拒绝或无效线索，可在时机合适时重新激活。','已分配':'已归属招生人员的线索，可按负责人和阶段查看，并由主管改派。'}[t];let headers=t==='预警中'?['学生 / 家长','年级 · 学科','归属招生','约定跟进','已超时','最近一次跟进','操作']:t==='冷宫池'?['学生 / 家长','年级 · 学科','原归属招生','类型','关闭原因','归档时间','操作']:t==='已分配'?['学生 / 家长','年级 · 学科','来源','归属招生','阶段','跟进状态','意向','操作']:['学生 / 家长','年级','意向学科','详情','分配'];let rows=list.map(l=>t==='预警中'?`<tr><td>${leadPerson(l)}</td><td>${l.grade} · ${l.subject}</td><td>${l.owner}<div class="lead-secondary">${l.campus}</div></td><td>${esc(l.next)}</td><td>${leadPill('26小时')}</td><td>${esc(l.history.at(-1)?.[2]||'—')}</td><td><button class="btn small" onclick="remindLead(${l.index})">一键提醒</button></td></tr>`:t==='冷宫池'?`<tr><td>${leadPerson(l)}</td><td>${l.grade} · ${l.subject}</td><td>${l.owner}</td><td>${leadPill('明确拒绝')}</td><td>${esc(l.closeReason||l.note)}${l.closeDetails?`<div class="lead-secondary" style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(l.closeDetails)}</div>`:''}</td><td>${esc(l.closedAt||'08-26')}</td><td><button class="btn small" onclick="reactivateLead(${l.index})">重新激活</button></td></tr>`:t==='已分配'?`<tr><td><a onclick="leadDetail(${l.index},'leadManage')">${esc(l.name)}</a><div class="lead-secondary">${esc(l.name)}${esc(l.guardian)}</div></td><td>${l.grade} · ${l.subject}</td><td>${esc(l.source)}</td><td>${l.owner}<div class="lead-secondary">${l.campus}</div></td><td>${leadPill(l.stage)}</td><td>${esc(l.next)}</td><td>${leadPill(leadIntentLabel(l))}</td><td><button class="btn small" onclick="leadState.selected=${l.index};leadState.modal='assign';leadRender()">改派</button></td></tr>`:`<tr><td>${leadPerson(l)}</td><td>${l.grade}</td><td>${l.subject}</td><td><button class="btn small" onclick="leadDetail(${l.index},'leadManage')">详情</button></td><td><button class="btn small primary" onclick="leadState.selected=${l.index};leadState.modal='assign';leadRender()">分配</button></td></tr>`);return heading('线索管理','新线索、回收、预警、归档与已分配线索的管理入口')+`<div class="card pad">${leadSegments(tabs,t,'setManageTab')}${t==='回收池'?`<div class="academic-grid"><div class="lead-tip"><strong>回收与预警规则</strong><p>15 天无新沟通记录进入预警；20 天无有效沟通进入回收池；约定时间超时 24 小时进入预警中。</p></div><div class="lead-tip"><strong>重新分配与交接</strong><p>保留原有跟进记录，新负责人可查看完整档案与沟通摘要。</p></div></div>`:''}<div class="lead-tip ${t==='回收池'||t==='预警中'||t==='冷宫池'?'gold':''}">${intro}${t==='预警中'?` <button class="btn small right" onclick="toast('已向负责招生人员发送演示提醒')">全部一键提醒</button>`:''}</div>${t==='已分配'?`<div class="filters">${aSelect('lead-owner',['王敏','李强','陈静'],'全部咨询人员')}${aSelect('lead-stage',['新线索','新分配','跟进中'],'全部状态')}<span class="count">共 ${list.length} 条</span></div>`:''}${aTable(headers,rows)}<div class="data-bar">共 ${list.length} 条线索</div></div>`}
-function countLead(status){return leadState.leads.filter(l=>l.status===status).length}
+function leadManageTabs(){return [['新线索',countLead('new')],['回收池',countLead('recycle')],['预警中',countLead('warning')],['冷宫池',countLead('cold')],['已分配',leadManagePoolRows('已分配',false).length],['已报名',leadState.leads.filter(l=>l.stage==='已报名'&&leadManagementVisible(l)).length]]}
+function leadManagePage(){if(leadState.manageTab==='已报名')return leadManageEnrolledPage();let tabs=leadManageTabs();let t=leadState.manageTab;let list=leadState.leads.map((l,i)=>({...l,index:i})).filter(leadManagementVisible).filter(l=>t==='新线索'?l.status==='new':t==='回收池'?l.status==='recycle':t==='预警中'?l.status==='warning':t==='冷宫池'?l.status==='cold':!!leadAssignedCategory(l)).filter(l=>!['冷宫池','已分配'].includes(t)||leadManagePoolMatches(l,t));let intro={'新线索':'统一分配或手工登记时未指定招生岗的线索，可查看档案并分配。','回收池':'长期未有效沟通的线索在这里等待重新分配；交接时保留全部跟进记录。','预警中':'超过约定跟进时间仍无新跟进记录的线索，需要联系负责招生人员。','冷宫池':'已归档的拒绝或无效线索，可在时机合适时重新激活。','已分配':'已归属招生人员且未报名的线索，可按校区、招生人员和状态筛选，并由主管改派。跟进中对应我的线索中的可跟进。'}[t];let headers=t==='预警中'?['学生 / 家长','年级 · 学科','归属招生','约定跟进','已超时','最近一次跟进','操作']:t==='冷宫池'?['学生 / 家长','年级 · 学科','原归属招生','类型','关闭原因','归档时间','操作']:t==='已分配'?['学生 / 家长','年级 · 学科','来源','归属招生','阶段','跟进状态','意向','操作']:['学生 / 家长','年级','意向学科','详情','分配'];let rows=list.map(l=>t==='预警中'?`<tr><td>${leadPerson(l)}</td><td>${l.grade} · ${l.subject}</td><td>${l.owner}<div class="lead-secondary">${l.campus}</div></td><td>${esc(l.next)}</td><td>${leadPill('26小时')}</td><td>${esc(l.history.at(-1)?.[2]||'—')}</td><td><button class="btn small" onclick="remindLead(${l.index})">一键提醒</button></td></tr>`:t==='冷宫池'?`<tr><td>${leadPerson(l)}</td><td>${l.grade} · ${l.subject}</td><td>${l.owner}</td><td>${leadPill('明确拒绝')}</td><td>${esc(l.closeReason||l.note)}${l.closeDetails?`<div class="lead-secondary" style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(l.closeDetails)}</div>`:''}</td><td>${esc(l.closedAt||'08-26')}</td><td><button class="btn small" onclick="reactivateLead(${l.index})">重新激活</button></td></tr>`:t==='已分配'?`<tr><td><a onclick="leadDetail(${l.index},'leadManage')">${esc(l.name)}</a><div class="lead-secondary">${esc(l.name)}${esc(l.guardian)}</div></td><td>${l.grade} · ${l.subject}</td><td>${esc(l.source)}</td><td>${esc(l.owner)}<div class="lead-secondary">${esc(l.ownershipCampus||'未记录校区')}</div></td><td>${leadPill(leadAssignedCategory(l))}</td><td>${esc(l.next)}</td><td>${leadPill(leadIntentLabel(l))}</td><td><button class="btn small" onclick="leadState.selected=${l.index};leadState.modal='assign';leadRender()">改派</button></td></tr>`:`<tr><td>${leadPerson(l)}</td><td>${l.grade}</td><td>${l.subject}</td><td><button class="btn small" onclick="leadDetail(${l.index},'leadManage')">详情</button></td><td><button class="btn small primary" onclick="leadState.selected=${l.index};leadState.modal='assign';leadRender()">分配</button></td></tr>`);return leadManageHeading('新线索、回收、预警、归档与已分配线索的管理入口')+`<div class="card pad">${leadSegments(tabs,t,'setManageTab')}${t==='回收池'?`<div class="academic-grid"><div class="lead-tip"><strong>回收与预警规则</strong><p>15 天无新沟通记录进入预警；20 天无有效沟通进入回收池；约定时间超时 24 小时进入预警中。</p></div><div class="lead-tip"><strong>重新分配与交接</strong><p>保留原有跟进记录，新负责人可查看完整档案与沟通摘要。</p></div></div>`:''}<div class="lead-tip ${t==='回收池'||t==='预警中'||t==='冷宫池'?'gold':''}">${intro}${t==='预警中'?` <button class="btn small right" onclick="toast('已向负责招生人员发送演示提醒')">全部一键提醒</button>`:''}</div>${t==='已分配'?leadManagePoolFilterHTML(t):''}${t==='冷宫池'?leadManagePoolFilterHTML(t):''}${aTable(headers,rows)}<div class="data-bar">共 ${list.length} 条线索</div></div>`}
+function leadManagePoolFilters(tab=leadState.manageTab){
+  const identity=typeof permissionState==='undefined'?'admin':permissionState.identity;
+  if(leadState.poolFilterIdentity!==identity){leadState.poolFilterIdentity=identity;leadState.poolFilters={}}
+  return (leadState.poolFilters??={})[tab]??=( {campus:'',owner:'',stage:''} );
+}
+function leadManagePoolOwners(lead,tab=leadState.manageTab){
+  const owner=tab==='回收池'?lead.previousOwner:lead.owner&&lead.owner!=='未分配'?lead.owner:lead.previousOwner;
+  return [...new Set(String(owner||'').split('、').filter(name=>name&&name!=='未分配'))];
+}
+function leadManagePoolMatches(lead,tab=leadState.manageTab){
+  const f=leadManagePoolFilters(tab),owners=leadManagePoolOwners(lead,tab);
+  return leadManagementVisible(lead)&&(!f.owner||(f.owner==='__unrecorded__'?!owners.length:owners.includes(f.owner)))&&(tab!=='已分配'||!f.stage||leadAssignedCategory(lead)===f.stage);
+}
+function leadAssignedCategory(lead){
+  const category=leadWorkflowCategory(lead);
+  return category==='可跟进'?'跟进中':category==='约试听'?'约试听':'';
+}
+function leadManagePoolRows(tab=leadState.manageTab,filtered=true){
+  const status=({'回收池':'recycle','预警中':'warning','冷宫池':'cold'})[tab];
+  return leadState.leads.map((lead,index)=>({...lead,index})).filter(lead=>(tab==='已分配'?!!leadAssignedCategory(lead):tab==='已报名'?lead.stage==='已报名':lead.status===status)&&leadManagementVisible(lead)&&(!filtered||leadManagePoolMatches(lead,tab)));
+}
+function leadManagePoolFilterHTML(tab=leadState.manageTab){
+  const f=leadManagePoolFilters(tab),rows=leadManagePoolRows(tab,false);
+  const owners=[...new Set(rows.flatMap(l=>leadManagePoolOwners(l,tab)))];
+  const unknownOwner=rows.some(l=>!leadManagePoolOwners(l,tab).length);
+  return `<div class="toolbar lead-pool-filters"><div class="toolbar-left"><div class="field"><label for="lead-pool-owner">招生人员</label><select class="select" id="lead-pool-owner" onchange="leadManagePoolSetFilter('owner',this.value)"><option value="">全部招生人员</option>${owners.map(name=>`<option value="${esc(name)}" ${f.owner===name?'selected':''}>${esc(name)}</option>`).join('')}${unknownOwner?`<option value="__unrecorded__" ${f.owner==='__unrecorded__'?'selected':''}>未记录招生人员</option>`:''}</select></div>${tab==='已分配'?`<div class="field"><label for="lead-pool-stage">状态</label><select class="select" id="lead-pool-stage" onchange="leadManagePoolSetFilter('stage',this.value)"><option value="">全部状态</option>${['跟进中','约试听'].map(stage=>`<option value="${stage}" ${f.stage===stage?'selected':''}>${stage}</option>`).join('')}</select></div>`:''}</div><button class="btn small" onclick="leadManagePoolResetFilters()">重置筛选</button></div>`;
+}
+function leadManagePoolSetFilter(key,value){
+  if(!['campus','owner','stage'].includes(key)||!['回收池','预警中','冷宫池','已分配','已报名'].includes(leadState.manageTab))return;
+  if(key==='stage'&&(leadState.manageTab!=='已分配'||!['','跟进中','约试听'].includes(value)))return;
+  if(key==='campus'){leadSetManagementCampus(value);return}
+  const f=leadManagePoolFilters();f[key]=value;leadRender();
+}
+function leadManagePoolResetFilters(){const f=leadManagePoolFilters();f.campus='';f.owner='';f.stage='';leadRender()}
+function leadManagementSelectedCampus(){return typeof leadCampusSelection==='function'?leadCampusSelection():leadState.managementCampus||''}
+function leadManagementVisible(lead){
+  const campus=leadManagementSelectedCampus();
+  return (typeof leadCanManage!=='function'||leadCanManage(lead))&&(!campus||(lead.ownershipCampus||'__unrecorded__')===campus);
+}
+function leadSetManagementCampus(value){
+  if(!permissionCanVisit('leadManage'))return;
+  const all=typeof leadAllCampusAccess!=='function'||leadAllCampusAccess();
+  const rows=leadState.leads.filter(l=>typeof leadCanManage!=='function'||leadCanManage(l));
+  const options=typeof leadManageCampusOptions==='function'?leadManageCampusOptions(rows):[...new Set(rows.map(l=>l.ownershipCampus).filter(Boolean))];
+  if(!options.includes(value)&&!(all&&(!value||value==='__unrecorded__'&&rows.some(l=>!l.ownershipCampus))))return;
+  leadManagementSelectedCampus();leadState.managementCampus=value;leadState.queueCampus='';
+  for(const filters of Object.values(leadState.poolFilters||{})){filters.campus='';filters.owner=''}
+  leadState.modal=null;leadState.assignmentDraft=null;leadRender();
+}
+function leadManageHeading(subtitle){
+  const campus=leadManagementSelectedCampus(),all=typeof leadAllCampusAccess!=='function'||leadAllCampusAccess();
+  const rows=leadState.leads.filter(l=>typeof leadCanManage!=='function'||leadCanManage(l));
+  const options=typeof leadManageCampusOptions==='function'?leadManageCampusOptions(rows):[...new Set(rows.map(l=>l.ownershipCampus).filter(Boolean))];
+  const control=all||options.length>1?`<select class="select" id="lead-management-campus" onchange="leadSetManagementCampus(this.value)">${all?'<option value="">全部校区</option>':''}${options.map(name=>`<option value="${esc(name)}" ${campus===name?'selected':''}>${esc(name)}</option>`).join('')}${all&&rows.some(l=>!l.ownershipCampus)?`<option value="__unrecorded__" ${campus==='__unrecorded__'?'selected':''}>未记录校区</option>`:''}</select>`:`<span id="lead-management-campus" class="lead-fixed-campus">${esc(campus||'未配置有效校区')}</span>`;
+  return `<div class="heading lead-management-heading"><div><div class="lead-management-title"><h1>线索管理</h1><div class="lead-management-campus"><label for="lead-management-campus">校区</label>${control}</div></div><p class="subtitle">${subtitle}</p></div></div>`;
+}
+function countLead(status){return leadState.leads.filter(l=>l.status===status&&leadManagementVisible(l)).length}
 function setManageTab(t){leadState.manageTab=t;leadRender()}
 function leadDetailPhone(phone){return String(phone||'').replace(/^(\d{3})\d{4}(\d{4})$/,'$1****$2')}
 function leadDetailPage(){
@@ -98,7 +162,7 @@ function leadDetailPage(){
   ];
   return `<div class="lead-detail-wrap ${registrationOnly?'lead-registration-detail':''}">
     <button class="btn small lead-detail-close" onclick="leadNav('${leadState.returnPage}')">× 关闭</button>
-    <section class="card lead-profile-card"><div class="lead-detail-top"><div class="lead-profile-main"><div class="lead-profile-title"><h1>${esc(l.name)}</h1>${leadPill(leadIntentLabel(l))}${leadPill(l.grade+' · '+l.subject)}${leadPill(l.stage)}</div><p class="lead-profile-meta">${esc(l.name)}${esc(l.guardian)} · ${esc(leadDetailPhone(l.phone))} · ${esc(l.source)} · 意向校区：${esc(l.campus)} · 负责人：${esc(l.owner)}</p></div><button class="btn small" onclick="leadOpenForm('edit')">✎ 修改</button></div></section>
+    <section class="card lead-profile-card"><div class="lead-detail-top"><div class="lead-profile-main"><div class="lead-profile-title"><h1>${esc(l.name)}</h1>${leadPill(leadIntentLabel(l))}${leadPill(l.grade+' · '+l.subject)}${leadPill(l.stage)}</div><p class="lead-profile-meta">${esc(l.name)}${esc(l.guardian)} · ${esc(leadDetailPhone(l.phone))} · ${esc(l.source)} · 意向校区：${esc(l.campus)}${l.ownershipCampus?' · 归属校区：'+esc(l.ownershipCampus):''} · 负责人：${esc(leadCampusQueueLabel(l))}</p></div><button class="btn small" onclick="leadOpenForm('edit')">✎ 修改</button></div></section>
     <section class="lead-summary"><div class="lead-summary-heading"><div><h2>AI 学员简报</h2><span>基于当前跟进记录整理 · 演示摘要</span></div><button class="btn small" onclick="leadRefreshSummary()">▣ 刷新</button></div>
       <p><strong>学员简报：</strong>${esc(l.grade)}，意向学科${esc(l.subject)}${l.school?'，就读'+esc(l.school):''}，通过${esc(l.source)}建档，当前${esc(l.stage)}。累计跟进记录 ${history.length} 条。${l.note?'档案备注：'+esc(l.note)+'。':''}${latest?'最近沟通记录：'+esc(latest[2]):''}</p>
       <p><strong>综合分析：</strong>${esc(leadSummaryInsight(l))}</p>
@@ -129,13 +193,26 @@ function leadOpenAction(action){
   leadRender();
   if(action==='colleague')leadRenderCandidates();
 }
+function leadPublicPoolDefaultCampus(lead){
+  const staff=state.staff.filter(person=>person.active&&leadHasOwner(lead,leadStaffIdentity(person)));
+  const operator=leadCurrentOperator();
+  const current=staff.filter(person=>operator.account&&(person.account||person.phone)===operator.account);
+  const candidates=current.length===1?current:staff;
+  const campuses=[...new Set(candidates.flatMap(person=>staffCampusNames(person).length?staffCampusNames(person):['']))];
+  if(current.length===1&&campuses.includes(lead.ownershipCampus)&&state.campuses.some(c=>c.active&&c.name===lead.ownershipCampus))return lead.ownershipCampus;
+  return campuses.length===1&&state.campuses.some(c=>c.active&&c.name===campuses[0])?campuses[0]:'';
+}
+function leadPublicPoolCampusField(lead){
+  const selected=leadPublicPoolDefaultCampus(lead),campuses=state.campuses.filter(c=>c.active);
+  return `<div class="field"><label class="required" for="lead-public-campus">选择校区</label><select class="select" id="lead-public-campus" required aria-required="true"><option value="">请选择校区</option>${campuses.map(c=>`<option value="${esc(c.name)}" ${c.name===selected?'selected':''}>${esc(c.name)}</option>`).join('')}</select>${selected?'':'<p class="help">未能确定招生人员的所属校区，请选择接收线索的校区。</p>'}</div>`;
+}
 function leadActionModalPage(){
   const action=leadState.modal,lead=leadState.leads[leadState.selected];
   const title={colleague:'转同事',publicPool:'回公海'}[action];
   const cancel=`<button class="btn" onclick="leadState.modal=null;leadRender()">取消</button>`;
   let content='';
   if(action==='colleague')content=`<div class="lead-assignee-panel"><input class="input" id="lead-assignee-search" aria-label="搜索招生同事" placeholder="搜索具有「招生岗」权限的同事姓名/账号" oninput="leadRenderCandidates()"><div class="lead-recommend"><span>推荐5人 ·</span><button type="button" class="active" data-lead-sort="conversion" onclick="leadSetCandidateSort('conversion')">转化率优先</button><button type="button" data-lead-sort="capacity" onclick="leadSetCandidateSort('capacity')">可用资源最少</button></div><div id="lead-candidates"></div><p class="help">仅显示在职且所属职位具有线索或登记权限的员工；推荐顺序基于原型演示数据。</p></div><p id="lead-transfer-selection" class="help" aria-live="polite">请选择接收线索的同事</p><div class="modal-actions">${cancel}<button class="btn primary" onclick="leadTransferColleague()">确认转交</button></div>`;
-  if(action==='publicPool')content=`<p>将 ${esc(lead.name)} 放回公海，交由团队重新分配？</p><p class="muted">当前负责人将清空，已有档案与跟进记录保留。回公海后进入“线索管理 → 回收池”，等待重新分配。</p><div class="field"><label for="lead-public-reason">回公海原因</label><textarea class="textarea" id="lead-public-reason" placeholder="选填，说明交回原因"></textarea></div><div class="modal-actions">${cancel}<button class="btn primary" onclick="leadReturnPublicPool()">确认回公海</button></div>`;
+  if(action==='publicPool')content=`<p>将 ${esc(lead.name)} 放回公海，交由团队重新分配？</p><p class="muted">当前负责人将清空，已有档案与跟进记录保留。回公海后进入所选校区的“线索管理 → 回收池”，等待重新分配。</p>${leadPublicPoolCampusField(lead)}<div class="field"><label for="lead-public-reason">回公海原因</label><textarea class="textarea" id="lead-public-reason" placeholder="选填，说明交回原因"></textarea></div><div class="modal-actions">${cancel}<button class="btn primary" onclick="leadReturnPublicPool()">确认回公海</button></div>`;
   return `<div class="modal-backdrop"><div class="modal lead-modal" role="dialog" aria-modal="true" aria-labelledby="lead-action-title"><div class="modal-head"><h2 id="lead-action-title">${title}</h2><button class="btn small" aria-label="关闭" onclick="leadState.modal=null;leadRender()">✕</button></div>${content}</div></div>`;
 }
 function leadTransferColleague(){
@@ -151,13 +228,19 @@ function leadTransferColleague(){
   leadState.modal=null;leadRender();toast('线索已转交给'+person.name);
 }
 function leadReturnPublicPool(){
-  if(!leadRequireFollow())return;
+  if(leadState.modal!=='publicPool'||!leadRequireFollow())return;
 
   const lead=leadState.leads[leadState.selected],previous=lead.owner,reason=$('#lead-public-reason').value.trim();
   if(['new','recycle','cold'].includes(lead.status)||lead.stage==='已报名'){toast('当前线索不可回公海');return}
+  const campus=$('#lead-public-campus').value,previousCampus=lead.ownershipCampus||'';
+  if(!state.campuses.some(c=>c.active&&c.name===campus)){toast('请选择已启用的校区');return}
   leadRecycle(lead,['销售主动回公海'],Date.now(),false);
-  lead.history.push(leadHistoryEntry('回公海',`由${previous}交回公海，等待重新分配。${reason?'原因：'+reason:''}`,{},new Date().toLocaleString('zh-CN')));
-  leadState.modal=null;leadState.manageTab='回收池';leadRender();toast('已回公海，进入回收池等待重新分配');
+  lead.ownershipCampus=campus;
+  lead.history.push(leadHistoryEntry('回公海',`由${previous}交回${campus}公海，等待重新分配。${reason?'原因：'+reason:''}`,{previousOwner:previous,previousCampus,ownershipCampus:campus},new Date().toLocaleString('zh-CN')));
+  leadState.modal=null;leadState.manageTab='回收池';
+  if(state.page==='leadDetail'&&typeof leadCampusCanRead==='function'&&!leadCampusCanRead(lead,leadState.returnPage))leadNav(leadState.returnPage||'myLeads');
+  else leadRender();
+  toast('已回公海，进入'+campus+'回收池等待重新分配');
 }
 function leadToEnrollment(){
   if(!leadRequireFollow())return;
@@ -287,6 +370,7 @@ function leadToggleAssignment(){
 }
 function leadFormContent(standalone=false){
   const edit=leadState.formMode==='edit',l=edit?leadState.leads[leadState.selected]:null;
+  const nonSales=!edit&&leadNonSalesEntry();
   leadState.candidateSort='conversion';leadState.assigneeId=edit?state.staff.findIndex(s=>s.name===l?.owner):-1;
   leadState.assigneeIds=[];
   const schools=l?.schools?.length?l.schools:[{stage:'小学',name:l?.school||'',entryYear:''}];
@@ -294,31 +378,33 @@ function leadFormContent(standalone=false){
   return `${standalone||edit?'':`<div class="lead-segments"><button class="active">单条登记</button><button onclick="leadOpenForm('create','import')">批量导入</button></div>`}${edit?'':'<div class="lead-tip">适用于主动来电、家长上门和转介绍等手动录入场景。扫码表单和活动报名的线索通常会自动入池。</div>'}<div class="lead-form-grid">
     ${aField('学生姓名',aInput('lead-name','例如：王小明','text',l?.name||''),true)}
     ${aField('联系电话',aInput('lead-phone','录入后自动脱敏显示','tel',l?.phone||''),true)}
+    ${nonSales?`<div class="field full"><label class="required" for="lead-ownership-campus">归属校区</label><select class="select" id="lead-ownership-campus" required aria-required="true"><option value="">请选择归属校区</option>${state.campuses.filter(c=>c.active).map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}</select><p class="help">提交后由对应校区招生组长统一分配。</p></div>`:edit&&l.ownershipCampus?`<div class="field full"><label>归属校区</label><div>${esc(l.ownershipCampus)}</div></div>`:''}
     ${aField('就读年级',leadGradeSelect())}
     ${aField('来源渠道',aSelect('lead-source',['主动来电','家长上门','转介绍','地推扫码','公众号','活动报名','宣传物料扫码'],'请选择来源'))}
     <div class="field full"><div class="lead-school-heading"><span>公立学校</span><div class="lead-radio" role="radiogroup" aria-label="学制"><label><input type="radio" name="lead-school-system" value="63" ${l?.schoolSystem==='54'?'':'checked'} onchange="leadSyncSchoolYears()"> 六三制</label><label><input type="radio" name="lead-school-system" value="54" ${l?.schoolSystem==='54'?'checked':''} onchange="leadSyncSchoolYears()"> 五四制</label></div></div><div id="lead-school-rows">${schools.map((x,i)=>leadSchoolRow(x,i>0)).join('')}</div><p class="help"><span id="lead-school-grade-result"></span>填写任一学段的入学年份，其他学段自动推算；六三制为小学6年、初中3年，五四制为小学5年、初中4年，高中均为3年，每年9月升年级。</p></div>
     ${aField('学生性别',`<div class="lead-radio"><label><input type="radio" name="lead-gender" ${l?.gender==='女'?'':'checked'}> 男</label><label><input type="radio" name="lead-gender" ${l?.gender==='女'?'checked':''}> 女</label></div>`)}
-    ${aField('咨询家长',aSelect('lead-guardian',['妈妈','爸爸','其他'],'请选择关系'))}
-    ${aField('意向校区',aSelect('lead-campus',state.campuses.filter(c=>c.active).map(c=>c.name),'待定'),'','报名时再确认就读校区。')}
+    ${aField('招生家长',aSelect('lead-guardian',['妈妈','爸爸','其他'],'请选择关系'))}
     <div class="field full"><label>意向学科</label><div class="checkrow">${['语文','数学','英语','物理','化学'].map(x=>`<label><input type="checkbox" name="lead-subject" value="${x}" ${l?.subject?.includes(x)?'checked':''}> ${x}</label>`).join('')}</div></div>
-    ${edit?'':`<div class="field full"><label>分配咨询</label><div class="lead-radio"><label><input type="radio" name="lead-assign" value="self" ${assign==='self'?'checked':''} onchange="leadToggleAssignment()"> 我自己</label><label><input type="radio" name="lead-assign" value="uniform" ${assign==='uniform'?'checked':''} onchange="leadToggleAssignment()"> 统一分配</label><label><input type="radio" name="lead-assign" value="specific" ${assign==='specific'?'checked':''} onchange="leadToggleAssignment()"> 指定招生岗（搜索选择）</label></div>
+    ${edit||nonSales?'':`<div class="field full"><label>分配招生</label><div class="lead-radio"><label><input type="radio" name="lead-assign" value="self" ${assign==='self'?'checked':''} onchange="leadToggleAssignment()"> 我自己</label><label><input type="radio" name="lead-assign" value="uniform" ${assign==='uniform'?'checked':''} onchange="leadToggleAssignment()"> 统一分配</label><label><input type="radio" name="lead-assign" value="specific" ${assign==='specific'?'checked':''} onchange="leadToggleAssignment()"> 指定招生岗（搜索选择）</label></div>
       <div id="lead-assignee-panel" class="lead-assignee-panel" ${assign==='specific'?'':'hidden'}>${leadAssignmentPicker()}</div>
     </div>`}${edit&&leadIsRegistrationDetail()?'':`<div class="field full lead-registration-record">${edit?leadBasicRecordForm(l):leadRegistrationRecordForm(l)}</div>`}
   </div><div class="modal-actions"><button class="btn" onclick="leadCloseForm()">取消</button><button class="btn primary" id="lead-registration-save" onclick="saveLead()">${edit?'保存修改':'保存登记'}</button></div>`;
 }
 function saveLead(){
   const edit=leadState.formMode==='edit',old=edit?leadState.leads[leadState.selected]:null;
+  const nonSales=!edit&&leadNonSalesEntry(),ownershipCampus=nonSales?$('#lead-ownership-campus')?.value:'';
   if(edit&&!old){toast('未找到要修改的线索');return}
   if(edit&&leadIsRegistrationDetail()&&!shortcutOwnLead(old)){toast('只能修改本人登记的线索');return}
   if(!leadRecordReadyToSave())return;
   const name=$('#lead-name').value.trim(),phone=$('#lead-phone').value.trim();
   if(!name||!phone){toast('请填写学生姓名和联系电话');return}
+  if(nonSales&&!state.campuses.some(c=>c.active&&c.name===ownershipCampus)){toast('请选择已启用的归属校区');return}
   const schools=[...document.querySelectorAll('.lead-school-row')].map(row=>({stage:row.querySelector('.lead-school-stage').value,name:row.querySelector('.lead-school-name').value.trim(),entryYear:row.querySelector('.lead-school-year').value})).filter(x=>x.name||x.entryYear);
   const primary=schools.find(x=>x.entryYear);
   const schoolSystem=leadSchoolSystem(),derived=primary?leadSchoolGrade(primary.stage,primary.entryYear,new Date(),schoolSystem):null;
   const selectedGrade=$('#lead-grade').value,grade=leadConfiguredGrade(derived)||leadConfiguredGrade(selectedGrade);
   if(selectedGrade&&!grade&&selectedGrade!==old?.grade){toast('所选年级未启用，请在教学配置中启用后重新选择');return}
-  const basic={name,phone,guardian:$('#lead-guardian').value||'妈妈',grade:grade||selectedGrade||'未填',subject:[...document.querySelectorAll('input[name="lead-subject"]:checked')].map(x=>x.value).join('、')||'待定',source:$('#lead-source').value||'主动来电',campus:$('#lead-campus').value||'待定',gender:document.querySelectorAll('input[name="lead-gender"]')[1]?.checked?'女':'男',school:schools[0]?.name||'',schools};
+  const basic={name,phone,guardian:$('#lead-guardian').value||'妈妈',grade:grade||selectedGrade||'未填',subject:[...document.querySelectorAll('input[name="lead-subject"]:checked')].map(x=>x.value).join('、')||'待定',source:$('#lead-source').value||'主动来电',campus:old?.campus||'待定',gender:document.querySelectorAll('input[name="lead-gender"]')[1]?.checked?'女':'男',school:schools[0]?.name||'',schools};
   if(primary&&derived)basic.currentSchoolStage=derived.startsWith('小')?'小学':derived.startsWith('初')?'初中':derived.startsWith('高')?'高中':derived;
   basic.schoolSystem=schoolSystem;
   if(edit){
@@ -328,12 +414,13 @@ function saveLead(){
     Object.assign(old,basic);
     if(!leadIsRegistrationDetail())leadCommitBasicRecord(old,communication);
   }else{
-    const assign=document.querySelector('input[name="lead-assign"]:checked')?.value||'self';
+    const assign=nonSales?'uniform':document.querySelector('input[name="lead-assign"]:checked')?.value||'self';
     const assignees=assign==='specific'?leadAssignmentPeople():assign==='self'?[leadCurrentOperator()]:[];
     if(assign==='specific'&&(!assignees.length||assignees.length!==leadAssignmentIds().length)){toast('请选择在职且具有招生权限的同事');return}
     const owner=assign==='uniform'?'未分配':assignees.map(p=>p.name).join('、');
     const record={...basic,createdAt:new Date().toISOString(),followupCycleAt:new Date().toISOString(),stage:'新线索',intent:'',next:'未约定',owner,status:assign==='uniform'?'new':owner===leadCurrentOperator().name?'mine':'assigned',note:$('#lead-note').value.trim(),history:[]};
     leadSetOwners(record,assignees);
+    if(nonSales)leadRouteToCampus(record,ownershipCampus);
     leadCommitRegistrationRecord(record,leadRegistrationAssignment(assign,assignees));
     leadState.leads.unshift(record);
   }

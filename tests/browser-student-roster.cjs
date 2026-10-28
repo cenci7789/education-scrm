@@ -1,0 +1,63 @@
+const assert=require('node:assert/strict'),path=require('node:path'),fs=require('node:fs');
+const {chromium}=require(path.join(process.env.USERPROFILE,'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright'));
+(async()=>{
+ const browser=await chromium.launch({channel:'msedge',headless:true});
+ try{
+  const context=await browser.newContext({viewport:{width:1550,height:1000},timezoneId:'Asia/Shanghai'}),page=await context.newPage(),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(10000);
+  await page.goto(require('node:url').pathToFileURL(path.resolve(__dirname,'../index.html')).href);
+  await page.waitForFunction(()=>businessStorage.ready&&!businessStorage.busy);
+  await page.evaluate(()=>{
+   permissionState.identity='admin';
+   a.courses=[{name:'秋季数学',year:'2099',term:'秋季',grade:'初一',subject:'数学'},{name:'秋季英语',year:'2099',term:'秋季',grade:'初一',subject:'英语'}];
+   a.classes=a.courses.map((c,i)=>({id:'ROSTER-'+i,name:c.name+'班',course:c.name,campus:i?'南校区':'北校区',teacher:'授课老师'+i,academicTeacher:'教务老师'+i,room:'教室01',classType:'S班',year:c.year,term:c.term,date:'2099-10-24',time:'08:00–10:00',students:1,capacity:20,status:'未开课',sessions:[{id:'first-'+i,date:'2099-10-24',time:'08:00–10:00'},{id:'second-'+i,date:'2099-10-31',time:'08:00–10:00'}]}));
+   a.students=[{id:'ROSTER-STUDENT',name:'多班学生',phone:'13800138000',grade:'初一',status:'在读',enrollments:a.classes.map(c=>({classId:c.id,academicTerm:'2099-秋季',enrollmentStatus:'上课中'}))},
+    {id:'ROSTER-OTHER',name:'多班学生',phone:'13800138001',grade:'初一',enrollments:[{classId:'ROSTER-0',academicTerm:'2099-秋季',enrollmentStatus:'上课中'}]}];
+   a.students[0].enrollments.push({classId:'removed',className:'历史退费班',academicTerm:'2025-秋季',enrollmentStatus:'已退费'});
+   a.orders=[];trialState.requests=[0,1].map(i=>({id:980+i,classId:'ROSTER-'+i,studentId:'ROSTER-STUDENT',name:'多班学生',phone:'13800138000',course:a.courses[i].name,status:'已排班',scheduledTime:'2099-10-31T08:00',scheduledEndTime:'2099-10-31T10:00',scheduledSessionName:'第2讲',teacher:'授课老师'+i}));
+   nav('students');
+  });
+  const table=()=>page.locator('#student-term-results'),row=()=>table().locator('tbody tr').filter({hasText:'ROSTER-STUDENT'});
+  assert.equal(await table().locator('tbody tr').count(),2,'same student merges, different IDs never merge');
+  assert.deepEqual(await table().locator('th').allTextContents(),['学生ID','学生姓名','联系电话','操作']);
+  assert.deepEqual(await row().getByRole('button').allTextContents(),['沟通','学生档案']);
+  await page.locator('#student-filter-subject').selectOption('英语');assert.equal(await table().locator('tbody tr').count(),1);
+  await row().getByRole('button',{name:'学生档案',exact:true}).click();
+  const courses=page.locator('#student-current-courses');
+  assert.equal(await page.evaluate(()=>state.page),'studentDetail');assert.equal(await page.getByRole('dialog').count(),0);
+  assert.deepEqual(await page.getByRole('tablist',{name:'学生档案',exact:true}).getByRole('tab').allTextContents(),['在读课程','学习档案','购课记录']);
+  assert.equal(await page.getByRole('tab',{name:'在读课程',exact:true}).getAttribute('aria-selected'),'true');
+  assert.equal(await courses.locator('tbody tr').count(),4,'two regular classes and two trials across all filters');
+  assert(!(await courses.innerText()).includes('历史退费班'));assert((await courses.innerText()).includes('第2讲'));
+  const out=path.resolve(__dirname,'../.artifact-work/audit');fs.mkdirSync(out,{recursive:true});await page.screenshot({path:path.join(out,'student-current-courses-page.png')});
+  assert.equal(await courses.getByRole('columnheader',{name:'操作',exact:true}).count(),0);
+  assert.equal(await courses.getByRole('button').count(),0);
+  assert.equal(await page.getByRole('button',{name:'编辑基本信息',exact:true}).count(),0);
+  assert.equal(await page.locator('#view input, #view select, #view textarea').count(),0,'current courses is read-only');
+  await page.getByText('← 返回学生管理',{exact:true}).click();
+  await row().getByRole('button',{name:'学生档案',exact:true}).click();
+  assert.equal(await page.getByRole('tab',{name:'基本信息',exact:true}).count(),0);
+  assert.equal(await page.locator('details.student-profile-basic').getAttribute('open'),null);
+  await page.screenshot({path:path.join(out,'student-profile-basic-collapsed.png')});
+  await page.locator('details.student-profile-basic summary').click();assert(await page.getByRole('button',{name:'编辑基本信息',exact:true}).isVisible());
+  await page.getByRole('tab',{name:'学习档案',exact:true}).click();assert(await page.getByRole('button',{name:'新增学习档案',exact:false}).isVisible());
+  await page.getByRole('tab',{name:'购课记录',exact:true}).click();assert((await page.locator('body').innerText()).includes('历史退费班'));
+  await page.getByRole('tab',{name:'在读课程',exact:true}).click();assert.equal(await courses.locator('tbody tr').count(),4);assert(!(await courses.innerText()).includes('历史退费班'));
+  assert(await page.getByRole('button',{name:'编辑基本信息',exact:true}).isVisible());await page.locator('details.student-profile-basic summary').click();assert(!(await page.getByRole('button',{name:'编辑基本信息',exact:true}).isVisible()));
+  await page.getByText('← 返回学生管理',{exact:true}).click();assert.equal(await table().locator('tbody tr').count(),1);
+  await row().getByRole('button',{name:'沟通',exact:true}).click();assert(await page.getByRole('heading',{name:'沟通记录',exact:true}).isVisible());
+  assert.equal(await page.getByRole('button',{name:/^教务沟通 \d+$/}).getAttribute('aria-pressed'),'true');
+  await page.getByRole('button',{name:/^全部 \d+$/}).click();assert.equal(await page.getByRole('button',{name:/^全部 \d+$/}).getAttribute('aria-pressed'),'true');
+  await page.getByText('← 返回学生管理',{exact:true}).click();await row().getByRole('button',{name:'沟通',exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:/^教务沟通 \d+$/}).getAttribute('aria-pressed'),'true');
+  await page.getByText('← 返回学生管理',{exact:true}).click();
+  await page.getByRole('tab',{name:/试听学生/}).click();assert.equal(await table().locator('tbody tr').count(),1);
+  await page.getByRole('tab',{name:/正价学生/}).click();
+  await page.screenshot({path:path.join(out,'student-roster-one-row.png')});
+  await page.waitForFunction(()=>!businessStorage.busy);await page.reload();await page.waitForFunction(()=>businessStorage.ready&&!businessStorage.busy);await page.evaluate(()=>nav('students'));
+  assert.equal(await table().locator('tbody tr').count(),2);assert.equal(await page.evaluate(()=>a.students[0].enrollments.length),3);
+  await table().locator('tbody tr').filter({hasText:'ROSTER-OTHER'}).getByRole('button',{name:'学生档案',exact:true}).click();
+  assert.equal(await courses.locator('tbody tr').count(),1,'same-name students have separate current courses');assert(!(await courses.innerText()).includes('[试听]'));
+  assert.deepEqual(errors,[]);console.log('PASS browser: unique student rows, exact actions, course filters, all current classes/trials, profile tabs, communication, return filters and reload data preservation.');
+ }finally{await browser.close()}
+})().catch(e=>{console.error(e);process.exitCode=1});

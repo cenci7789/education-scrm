@@ -36,7 +36,7 @@ function studentTermEnrollments(now=Date.now()){
       const cls=a.classes.find(c=>record.classId?c.id===record.classId:c.name===record.className);
       const term=studentClassTerm(cls,record),className=cls?.name||record.className||record.course||'班级待确认';
       const key=(record.classId||className)+'|'+term;
-      records.set(key,{...studentTermClassFields(cls,record),personKey:'student:'+student.id,studentId:student.id,studentIndex:index,name:student.name,phone:student.phone,grade:record.grade||enrollmentClassInfo(cls||{}).grade||student.grade||'',
+      records.set(key,{...studentTermClassFields(cls,record),startSession:record.startSession??records.get(key)?.startSession,course:record.course||cls?.course||'',classType:record.classType||enrollmentClassInfo(cls||{}).classType||'',room:cls?.room||record.room||'',personKey:'student:'+student.id,studentId:student.id,studentIndex:index,name:student.name,phone:student.phone,grade:record.grade||enrollmentClassInfo(cls||{}).grade||student.grade||'',
         term,classId:cls?.id||record.classId,className,campus:record.campus||cls?.campus||student.campus||'',status:studentTermEnrollmentStatus(cls,record,now),kind:'enrollment'});
     };
     // Orders support older records; the student's current enrollment record takes precedence.
@@ -81,7 +81,7 @@ function studentTermView(){
 }
 function studentTermSetTab(tab){
   if(!studentTermTabs.includes(tab))return;
-  const view=studentTermView(),term=view.term;view.tab=tab;Object.assign(view,studentTermEmptyFilters(),{term});a.studentTermRequest=null;academicRender();
+  const view=studentTermView(),term=view.term;view.tab=tab;Object.assign(view,studentTermEmptyFilters(),{term});a.studentTermRequest=null;studentTermCourseSelection=null;academicRender();
 }
 studentTab=studentTermSetTab;
 function studentTermRows(tab=studentTermView().tab){return tab==='试听学生'?studentTermTrials():studentTermEnrollments()}
@@ -116,16 +116,17 @@ function studentTermFiltersHTML(rows){
 }
 
 function studentTermOpenStudent(id,section='沟通记录'){
-  const sections={'沟通':'沟通记录','沟通记录':'沟通记录','学习档案':'学习档案','购课记录':'购课信息'};
+  const sections={'沟通':'沟通记录','沟通记录':'沟通记录','学生档案':'在读课程','在读课程':'在读课程','基本信息':'基本信息','学习档案':'学习档案','购课记录':'购课信息'};
   const tab=sections[section],index=a.students.findIndex(s=>s.id===id);
   if(!tab||index<0||!permissionCanVisit('studentDetail'))return;
-  a.selectedStudent=index;studentProfileState.tab=tab;studentProfileState.requestedSection=tab;studentProfileState.communicationType='全部';studentProfileState.editing=false;nav('studentDetail');
+  studentProfileState.requestedCommunicationType=state.page==='students'&&tab==='沟通记录'?'教务沟通':null;
+  a.selectedStudent=index;studentProfileState.tab=tab;studentProfileState.requestedSection=tab;studentProfileState.communicationType='全部';studentProfileState.editing=false;studentProfileState.basicExpanded=false;nav('studentDetail');
 }
 function studentTermOpenClass(id){const index=a.classes.findIndex(c=>c.id===id);if(index<0||!permissionCanVisit('classDetail'))return;classOpenDetail(index)}
-function studentTermInspectTrial(id){const r=trialState.requests.find(r=>r.id===id);if(!r||!permissionCanVisit('students'))return;a.studentTermRequest=id;academicRender()}
+function studentTermInspectTrial(id){const r=trialState.requests.find(r=>r.id===id);if(!r||!(permissionCanVisit('students')||state.page==='learningActive'&&permissionCanVisit('learningActive')&&learningOwnTrials().some(row=>row.requestId===id)))return;a.studentTermRequest=id;academicRender()}
 function studentTermCloseTrial(){a.studentTermRequest=null;academicRender()}
 function studentTermTrialModal(){
-  const r=trialState.requests.find(r=>r.id===a.studentTermRequest);if(!r)return '';
+  const r=trialState.requests.find(r=>r.id===a.studentTermRequest);if(!r||state.page==='learningActive'&&!learningOwnTrials().some(row=>row.requestId===r.id))return '';
   return `<div class="modal-backdrop"><section class="modal" style="max-height:85vh;overflow:auto" role="dialog" aria-modal="true" aria-labelledby="student-term-trial-title"><div class="modal-head"><h2 id="student-term-trial-title">试听预约信息</h2><button class="btn small" aria-label="关闭" onclick="studentTermCloseTrial()">×</button></div>${trialSummary(r)}<div class="modal-actions"><button class="btn" onclick="studentTermCloseTrial()">关闭</button></div></section></div>`;
 }
 function studentTermTable(rows,trial=false){
@@ -133,7 +134,100 @@ function studentTermTable(rows,trial=false){
   const arg=value=>`decodeURIComponent('${encodeURIComponent(String(value)).replace(/'/g,'%27')}')`;
   return aTable(['学生ID','学生姓名','联系电话','班级 / 学期',...(trial?['预约课节 / 时间']:[]),'校区','授课老师','教务老师',trial?'试听状态':'本班状态','操作'],[...groups.values()].flatMap(group=>group.map((r,i)=>`<tr>${i?'':`<td rowspan="${group.length}">${esc(r.studentId||'待建档')}</td><td rowspan="${group.length}"><strong>${esc(r.name)}</strong>${r.grade?`<div class="help">${esc(r.grade)}</div>`:''}</td><td rowspan="${group.length}">${esc(r.phone||'—')}</td>`}<td>${r.classId&&a.classes.some(c=>c.id===r.classId)&&permissionCanVisit('classDetail')?`<a onclick="studentTermOpenClass(${arg(r.classId)})">${esc(r.className)}</a>`:esc(r.className)}<div class="help">${studentTermLabel(r.term)}</div></td>${trial?`<td>${esc(r.session||'待确认课节')}<div class="help">${esc(r.time||'待确认时间')}</div></td>`:''}<td>${esc(r.campus||'—')}</td><td>${esc(r.teacher||'—')}</td><td>${esc(r.academicTeacher||'—')}</td><td><span class="badge ${['已结课','已退费','已取消','已转班','已退班'].includes(r.status)?'off':''}">${esc(r.status)}</span></td><td><div class="actions">${r.studentIndex>=0?`<button class="btn small" onclick="studentTermOpenStudent(${arg(r.studentId)},'沟通')">沟通</button><button class="btn small" onclick="studentTermOpenStudent(${arg(r.studentId)},'学习档案')">学习档案</button><button class="btn small" onclick="studentTermOpenStudent(${arg(r.studentId)},'购课记录')">购课记录</button>`:''}${r.requestId!==undefined?`<button class="btn small" onclick="studentTermInspectTrial(${Number(r.requestId)})">预约详情</button>`:''}</div></td></tr>`)))+(!rows.length?'<div class="empty">暂无符合条件的学生，请调整筛选条件。</div>':'')+`<div class="data-bar">共 ${groups.size} 位学生 · ${rows.length} 条${trial?'试听':'班级'}记录</div>`;
 }
-function studentTermResults(){return studentTermTable(studentTermFiltered(studentTermRows()),studentTermView().tab==='试听学生')}
+function studentTermArg(value){return `decodeURIComponent('${encodeURIComponent(String(value)).replace(/'/g,'%27')}')`}
+function studentTermPeopleTable(rows){
+  const people=new Map();for(const row of rows)if(!people.has(row.personKey))people.set(row.personKey,row);
+  return aTable(['学生ID','学生姓名','联系电话','操作'],[...people.values()].map(r=>{
+    const student=a.students.find(s=>s.id===r.studentId),disabled=student?'':'disabled title="此历史预约尚未关联学生档案"';
+    return `<tr><td>${esc(r.studentId||'待建档')}</td><td><strong>${esc(student?.name||r.name)}</strong>${student?.grade?`<div class="help">${esc(student.grade)}</div>`:''}</td><td>${esc(student?.phone||r.phone||'—')}</td><td><div class="actions"><button class="btn small" ${disabled} onclick="studentTermOpenStudent(${studentTermArg(r.studentId)},'沟通')">沟通</button><button class="btn small" ${disabled} onclick="studentTermOpenStudent(${studentTermArg(r.studentId)},'学生档案')">学生档案</button></div></td></tr>`;
+  }))+(!people.size?'<div class="empty">暂无符合条件的学生，请调整筛选条件。</div>':'')+`<div class="data-bar">共 ${people.size} 位学生</div>`;
+}
+let studentTermCourseSelection=null;
+const studentTermPreviousRender=academicRender;
+academicRender=function(){
+  if(!['students','studentCourses'].includes(state.page)||studentTermCourseSelection?.actor!==studentTermActor())studentTermCourseSelection=null;
+  return studentTermPreviousRender();
+};
+function studentTermOpenCourses(personKey){
+  if(state.page!=='students'||!permissionCanVisit('students')||!studentTermFiltered(studentTermRows()).some(r=>r.personKey===personKey))return;
+  studentTermCourseSelection={personKey,actor:studentTermActor()};
+  const row=studentTermRows().find(r=>r.personKey===personKey);a.selectedStudent=row?.studentIndex??null;studentProfileState.editing=false;nav('studentCourses');
+}
+function studentTermCloseCourses(){studentTermCourseSelection=null;studentProfileState.editing=false;nav('students')}
+function studentCoursesContext(){
+  const selection=studentTermCourseSelection;
+  if(!selection||state.page!=='studentCourses'||!permissionCanVisit('studentCourses')||selection.actor!==studentTermActor())return null;
+  const all=[...studentTermEnrollments(),...studentTermTrials()].filter(r=>r.personKey===selection.personKey),person=all[0];
+  if(!person)return null;
+  const rows=studentCurrentCourseRows(all);
+  return {person,rows,student:a.students.find(s=>s.id===person.studentId)};
+}
+function studentCurrentCourseRows(all){return all.filter(r=>r.kind==='enrollment'?!['已结课','已退费','已退班','已转班','已取消'].includes(r.status):!['已取消','已重新预约'].includes(r.status)&&!trialState.requests.find(t=>t.id===r.requestId)?.salesReturnedAt)}
+function studentProfileCurrentCourses(student){
+  if(!student||!studentProfileAllowed())return '';
+  return studentCurrentCoursesTable(studentCurrentCourseRows([...studentTermEnrollments(),...studentTermTrials()].filter(row=>row.studentId===student.id)));
+}
+function studentCourseTrialSession(row){
+  const request=trialState.requests.find(r=>r.id===row.requestId),cls=a.classes.find(c=>c.id===row.classId);if(!request||!cls)return null;
+  const key=request.scheduledSessionId||request.requestedSessionId,at=myTrialTiming(request).start;
+  return trialClassSessions(cls).find(s=>key?s.id===key:at&&Date.parse(s.startsAt)===Date.parse(at))||null;
+}
+function studentCourseEntry(row){
+  if(row.kind==='trial'){const session=studentCourseTrialSession(row);return session?`第${session.number}讲`:/^第\d+讲/.test(row.session||'')?row.session.match(/^第\d+讲/)[0]:'待确认'}
+  const start=Number(row.startSession);return Number.isInteger(start)&&start>0?`第${start}讲`:'未记录';
+}
+function studentCourseSchedule(row){
+  const cls=a.classes.find(c=>c.id===row.classId);if(!cls)return '待排课';
+  let sessions=trialClassSessions(cls).filter(s=>!s.cancelled&&Number.isFinite(Date.parse(s.startsAt)));
+  if(row.kind==='trial'){const session=studentCourseTrialSession(row);sessions=session?[session]:[]}
+  if(!sessions.length)return row.kind==='trial'?row.time||'待确认时间':'待排课';
+  const groups=new Map();
+  for(const session of sessions){const start=new Date(session.startsAt),end=new Date(trialSessionEndTime(session)),pad=n=>String(n).padStart(2,'0');
+    const time=pad(start.getHours())+':'+pad(start.getMinutes())+(Number.isFinite(end.getTime())?'-'+pad(end.getHours())+':'+pad(end.getMinutes()):'（结束时间待确认）');
+    const date=start.getFullYear()+'-'+pad(start.getMonth()+1)+'-'+pad(start.getDate());
+    if(!groups.has(time))groups.set(time,[]);groups.get(time).push({date,weekday:'周'+'日一二三四五六'[start.getDay()]});
+  }
+  const holiday=['寒假','暑期'].includes(studentTermParts(row.term)?.season||studentTermSeason(enrollmentClassInfo(cls).term));
+  return [...groups].map(([time,dates])=>{dates.sort((x,y)=>x.date.localeCompare(y.date));return holiday?`${dates[0].date} 至 ${dates.at(-1).date} ${time}`:[...new Set(dates.map(d=>d.weekday))].map(day=>day+' '+time).join('；')}).join('；');
+}
+function studentCourseRowKey(row){return JSON.stringify([row.kind,row.classId,row.className,row.term,row.requestId])}
+function studentCourseAttendance(index){
+  const row=studentCoursesContext()?.rows[index];if(!row)return;
+  studentTermCourseSelection.attendanceKey=studentCourseRowKey(row);academicRender();
+}
+function studentCourseCloseAttendance(){if(studentTermCourseSelection)delete studentTermCourseSelection.attendanceKey;academicRender()}
+function studentCourseAttendanceRows(row){
+  const cls=a.classes.find(c=>c.id===row.classId);if(!cls)return [];
+  const trial=studentCourseTrialSession(row),start=Number(row.startSession);
+  const lessons=attendanceLessons(cls).filter(lesson=>row.kind==='trial'?trial&&(lesson.key===trial.id||Date.parse(lesson.startsAt||lesson.date+'T'+lesson.time.slice(0,5))===Date.parse(trial.startsAt)):!Number.isInteger(start)||start<1||lesson.number>=start);
+  const source=row.kind==='trial'?a.attendance:businessAttendanceRecords();
+  return lessons.map(lesson=>{
+    const records=source.filter(record=>row.studentId&&(record.studentId||a.students[record.studentIndex]?.id)===row.studentId&&
+      (record.classId||a.classes[record.classIndex]?.id)===cls.id&&
+      (record.sessionId?String(record.sessionId)===lesson.key:record.date===lesson.date&&attendanceTimeKey(record.time)===lesson.time)&&
+      (row.kind!=='trial'||record.trialRequestId===row.requestId));
+    return {lesson,records};
+  });
+}
+function studentCourseAttendanceModal(){
+  const context=studentCoursesContext(),row=context?.rows.find(r=>studentCourseRowKey(r)===studentTermCourseSelection?.attendanceKey);if(!row)return '';
+  const rows=studentCourseAttendanceRows(row);
+  return `<div class="modal-backdrop"><section class="modal" style="width:1000px;max-width:94vw;max-height:85vh;overflow:auto" role="dialog" aria-modal="true" aria-labelledby="student-course-attendance-title"><div class="modal-head"><h2 id="student-course-attendance-title">学生考勤记录</h2><button class="btn small" aria-label="关闭考勤记录" onclick="studentCourseCloseAttendance()">×</button></div><p>${esc(context.person.name)} · ${esc(row.className)}${row.kind==='trial'?' [试听]':''}</p>${aTable(['讲次','课节名称','上课日期','上课时间','考勤状态','出勤情况'],rows.map(({lesson,records})=>`<tr><td>${esc(lesson.label)}</td><td>${esc(lesson.name||'—')}</td><td>${esc(lesson.date||'待排课')}</td><td>${esc(lesson.time||'待排课')}</td><td>${esc(records.length?[...new Set(records.map(r=>r.status||'未考勤'))].join('、'):'未考勤')}</td><td>${esc(records.length?[...new Set(records.map(r=>r.attendance||'未记录'))].join('、'):'—')}</td></tr>`))}${rows.length?'':'<div class="empty">暂无可展示的课节考勤记录</div>'}<div class="modal-actions"><button class="btn" onclick="studentCourseCloseAttendance()">关闭</button></div></section></div>`;
+}
+function studentCoursesPage(){
+  const context=studentCoursesContext(),back='<a class="back-link" onclick="studentTermCloseCourses()">← 返回学生管理</a>';
+  if(!context)return back+'<div class="empty">请从学生管理选择学生查看在读课程。</div>';
+  const {student,person,rows}=context;
+  const basic=student?studentProfileBasic(student,true):`<section class="card pad page-block"><h2 class="section-title">基本信息</h2><div class="academic-grid three"><div>学生姓名：${esc(person.name)}</div><div>联系电话：${esc(person.phone||'—')}</div><div>年级：${esc(person.grade||'—')}</div></div></section>`;
+  return back+aHeading('在读课程',person.name+' · '+(person.studentId||'待建档'))+basic+`<section class="card pad"><h2 class="section-title">在读课程</h2>${studentCurrentCoursesTable(rows)}</section>`;
+}
+function studentCurrentCoursesTable(rows){
+  return `<div style="overflow-x:auto" id="student-current-courses">${aTable(['课程 / 班级','学科','班型','上课形式','授课老师','教务老师','校区','教室','进班课节','上课时间'],rows.map(row=>{
+    const cls=a.classes.find(c=>c.id===row.classId),info=cls?enrollmentClassInfo(cls):{},trial=studentCourseTrialSession(row);
+    return `<tr><td><strong>${esc(cls?.course||row.course||row.className)}</strong><div class="help">${esc(row.className)}${row.kind==='trial'?' [试听]':''}</div></td><td>${esc(row.subject||info.subject||'—')}</td><td>${esc(row.classType||info.classType||'—')}</td><td>${esc(row.format||info.format||'—')}</td><td>${esc(trial?.teacher||row.teacher||'—')}</td><td>${esc(row.academicTeacher||'—')}</td><td>${esc(row.campus||'—')}</td><td>${esc(trial?.room||cls?.room||row.room||'—')}</td><td>${esc(studentCourseEntry(row))}</td><td>${esc(studentCourseSchedule(row))}</td></tr>`;
+  }))}</div>${rows.length?'':'<div class="empty">暂无在读课程或试听安排</div>'}`;
+}
+function studentTermResults(){return studentTermPeopleTable(studentTermFiltered(studentTermRows()))}
 studentsPage=function(){
   const view=studentTermView(),rows=studentTermRows();
   return aHeading('学生管理','查看正价学生与试听学生，按学期、班级和教学信息筛选')+`<section class="card"><div class="tabs" role="tablist" aria-label="学生分类">${studentTermTabs.map(tab=>`<button class="tab ${view.tab===tab?'active':''}" role="tab" aria-selected="${view.tab===tab}" onclick="studentTermSetTab('${tab}')">${tab} <span class="count">${new Set(studentTermRows(tab).map(r=>r.personKey)).size}</span></button>`).join('')}</div><div class="pad"><div class="student-management-filters">${studentTermFiltersHTML(rows)}</div><div class="toolbar student-management-reset"><span class="help">老师可筛选授课老师或教务老师。</span><button class="btn small" onclick="studentTermResetFilters()">重置筛选</button></div><div id="student-term-results">${studentTermResults()}</div></div></section>${studentTermTrialModal()}`;

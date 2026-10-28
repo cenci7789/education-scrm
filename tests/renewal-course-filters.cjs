@@ -16,8 +16,8 @@ run("renewalCourseResetFilters();renewalCourseSetFilter('campus','甲校区');re
 assert.deepEqual(ids(),[],'filters cannot combine attributes of two different classes');
 run("renewalCourseSetFilter('teacher','教务甲')");assert.deepEqual(ids(),['M']);
 run("renewalCourseSetFilter('search','周日')");assert.deepEqual(ids(),[]);
-run("renewalCourseSetFilter('search','周六')");assert.deepEqual(ids(),['M']);
-run("renewalCourseResetFilters();renewalCourseSetFilter('status','未建班')");assert.deepEqual(ids(),['N']);
+run("renewalCourseSetFilter('search','数学')");assert.deepEqual(ids(),['M']);
+run("renewalCourseResetFilters();renewalCourseSetFilter('search','未建班')");assert.deepEqual(ids(),['N']);
 run("renewalCourseResetFilters();renewalCourseSetFilter('format','直播')");assert.deepEqual(ids(),['C']);
 run("renewalPeriodChange('all',false);renewalCourseToggleVisible(true)");assert.deepEqual(json('renewalPeriodDraft.selected'),['C']);
 run("renewalCourseSetFilter('format','面授');renewalPeriodToggle('M',true)");assert.deepEqual(json('renewalPeriodDraft.selected'),['C','M']);
@@ -26,4 +26,4 @@ assert(node('#renewal-course-results').innerHTML.includes('暂无符合条件'))
 run("renewalCourseResetFilters();renewalPeriodChange('year',2027)");assert.deepEqual(ids(),[]);
 assert.equal(run('renewalPeriodDraft.all'),true);
 assert(json('Object.values(renewalCourseFilters)').every(value=>value===''));
-console.log('PASS renewal course filters: all eight controls, same-class combinations, empty results, unseen selections and multi-selection.');
+console.log('PASS renewal course filters: course-name search and remaining filters, same-class combinations, empty results, unseen selections and multi-selection.');

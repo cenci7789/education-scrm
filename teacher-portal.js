@@ -31,9 +31,14 @@ function learningRowOwner(row){
   return snapshot&&(snapshot.teacherId||snapshot.teacherAccount||snapshot.teacher)?snapshot:cls||{teacher:row.teacher};
 }
 function learningOwnRows(){return studentTermEnrollments().filter(row=>learningMatchesTeacher(learningRowOwner(row))).map(row=>({...row,teacher:learningRowOwner(row).teacher||row.teacher}))}
+function learningOwnTrials(){return studentTermTrials().filter(row=>{
+  const request=trialState.requests.find(r=>r.id===row.requestId),cls=a.classes.find(c=>c.id===row.classId);
+  const sameTeacher=!request?.teacher||request.teacher===cls?.teacher;
+  return request?.status==='已排班'&&!request.supersededBy&&!request.salesReturnedAt&&learningMatchesTeacher({teacher:request.teacher||cls?.teacher,teacherId:request.teacherId||(sameTeacher?cls?.teacherId:''),teacherAccount:request.teacherAccount||(sameTeacher?cls?.teacherAccount:'')});
+})}
 function learningHistorical(row){return ['已结课','已退费','已退班','已转班','已取消'].includes(row.status)}
 function learningHasPage(page){return permissionState.identity==='admin'||Boolean(permissionRole()?.active&&permissionRole().grants.includes(page))}
-function learningOwnStudent(id){return learningOwnRows().some(r=>r.studentId===id&&learningHasPage(learningHistorical(r)?'learningHistory':'learningActive'))}
+function learningOwnStudent(id){return learningOwnRows().some(r=>r.studentId===id&&learningHasPage(learningHistorical(r)?'learningHistory':'learningActive'))||learningHasPage('learningActive')&&learningOwnTrials().some(r=>r.studentId===id)}
 function learningScopedProfile(){
   const context=learningStudentContext?.actor===learningActorKey();
   const general=permissionState.identity==='admin'||permissionRole()?.grants.includes('students');
@@ -60,13 +65,13 @@ function learningSelectTeacher(key){
 function learningView(){const key=learningActorKey()+'|'+state.page;if(!learningViews.has(key))learningViews.set(key,{tab:'正价学生',...studentTermEmptyFilters()});return learningViews.get(key)}
 const learningPreviousStudentView=studentTermView,learningPreviousStudentRows=studentTermRows,learningPreviousResults=studentTermResults,learningPreviousReset=studentTermResetFilters;
 studentTermView=function(){return ['learningActive','learningHistory'].includes(state.page)?learningView():learningPreviousStudentView()};
-studentTermRows=function(tab){return ['learningActive','learningHistory'].includes(state.page)?learningOwnRows().filter(r=>learningHistorical(r)===(state.page==='learningHistory')):learningPreviousStudentRows(tab)};
-studentTermResults=function(){return ['learningActive','learningHistory'].includes(state.page)?studentTermTable(studentTermFiltered(studentTermRows())).replaceAll('studentTermOpenStudent(', 'learningOpenStudent('):learningPreviousResults()};
+studentTermRows=function(tab=studentTermView().tab){return state.page==='learningActive'&&tab==='试听学生'?learningOwnTrials():['learningActive','learningHistory'].includes(state.page)?learningOwnRows().filter(r=>learningHistorical(r)===(state.page==='learningHistory')):learningPreviousStudentRows(tab)};
+studentTermResults=function(){return ['learningActive','learningHistory'].includes(state.page)?studentTermTable(studentTermFiltered(studentTermRows()),state.page==='learningActive'&&studentTermView().tab==='试听学生').replaceAll('studentTermOpenStudent(', 'learningOpenStudent('):learningPreviousResults()};
 studentTermResetFilters=function(){if(['learningActive','learningHistory'].includes(state.page)){Object.assign(learningView(),studentTermEmptyFilters());academicRender();return}return learningPreviousReset()};
 learningStudentsPage=function(){
   const rows=studentTermRows(),historical=state.page==='learningHistory',title=historical?'历史学生':'在读学生';
-  const filters=studentTermFiltersHTML(rows).replace(teachingDefaultTermHeading('students','student-filter-term'),'<label for="student-filter-term">学期</label>');
-  return aHeading(title,historical?'查看本人已结课、退班或转班学生，继续跟进沟通':'查看本人正在授课及待开课的正价学生')+`<section class="card pad">${learningTeacherControl()}<div class="student-management-filters">${filters}</div><div class="toolbar student-management-reset"><p class="help">按本人班级的就读状态分类，同一学生可有多条班级记录。</p><button class="btn small" onclick="studentTermResetFilters()">重置筛选</button></div><div id="student-term-results">${studentTermResults()}</div></section>`;
+  const filters=teachingPreviousStudentFields(rows);
+  return aHeading(title,historical?'查看本人已结课、退班或转班学生，继续跟进沟通':'查看本人班级的正价学生与已排班的试听学生')+`<section class="card pad">${learningTeacherControl()}${historical?'':`<div class="tabs" role="tablist" aria-label="学生分类">${studentTermTabs.map(tab=>`<button class="tab ${learningView().tab===tab?'active':''}" role="tab" aria-selected="${learningView().tab===tab}" onclick="studentTermSetTab('${tab}')">${tab} <span class="count">${new Set(studentTermRows(tab).map(r=>r.personKey)).size}</span></button>`).join('')}</div>`}<div class="student-management-filters">${filters}</div><div class="toolbar student-management-reset"><p class="help">按本人班级的就读状态分类，同一学生可有多条班级记录。</p><button class="btn small" onclick="studentTermResetFilters()">重置筛选</button></div><div id="student-term-results">${studentTermResults()}</div></section>${studentTermTrialModal()}`;
 };
 function learningOpenStudent(id,section){
   if(!['learningActive','learningHistory'].includes(state.page)||!permissionCanVisit(state.page)||!studentTermRows().some(r=>r.studentId===id))return;

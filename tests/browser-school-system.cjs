@@ -3,6 +3,7 @@ const {chromium}=require(path.join(process.env.USERPROFILE,'.cache/codex-runtime
 (async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
  const page=await browser.newPage({viewport:{width:1440,height:1100}}),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
  await page.goto(require('node:url').pathToFileURL(path.resolve(__dirname,'../index.html')).href);await page.waitForFunction(()=>businessStorage.ready&&!businessStorage.busy);
+ await page.evaluate(()=>state.campuses.push({name:'登记验收校区',active:true,classrooms:[]}));
  await page.locator('button[onclick="leadOpenForm()"]:visible').first().click();assert.equal(await page.getByRole('radio',{name:'六三制',exact:true}).isChecked(),true);
  const years=()=>page.locator('.lead-school-year').evaluateAll(els=>els.map(e=>e.value));
  await page.locator('.lead-school-year').first().selectOption('2020');await page.getByRole('button',{name:'+ 添加',exact:true}).click();await page.getByRole('button',{name:'+ 添加',exact:true}).click();assert.deepEqual(await years(),['2020','2026','2029']);
@@ -13,7 +14,7 @@ const {chromium}=require(path.join(process.env.USERPROFILE,'.cache/codex-runtime
  await page.locator('.lead-school-row').last().getByRole('button',{name:'移除',exact:true}).click();await page.getByRole('button',{name:'+ 添加',exact:true}).click();assert.deepEqual(await years(),['2021','2026','2030']);
  await page.locator('#lead-name').fill('学制联动测试');await page.locator('#lead-phone').fill('13823456789');await page.locator('.lead-school-name').first().fill('演示小学');
  const output=path.resolve(__dirname,'../.artifact-work/audit');fs.mkdirSync(output,{recursive:true});await page.screenshot({path:path.join(output,'lead-school-system.png'),fullPage:true});
- await page.getByRole('button',{name:'保存登记',exact:true}).click();await page.evaluate(()=>businessSave());await page.waitForFunction(()=>!businessStorage.busy);await page.reload();await page.waitForFunction(()=>businessStorage.ready&&!businessStorage.busy);
+ await page.locator('#lead-ownership-campus').selectOption('登记验收校区');await page.getByRole('button',{name:'保存登记',exact:true}).click();await page.evaluate(()=>businessSave());await page.waitForFunction(()=>!businessStorage.busy);await page.reload();await page.waitForFunction(()=>businessStorage.ready&&!businessStorage.busy);
  assert.deepEqual(await page.evaluate(()=>{const l=leadState.leads.find(l=>l.name==='学制联动测试');return [l.schoolSystem,l.schools.map(s=>s.entryYear)]}),['54',['2021','2026','2030']]);
  await page.evaluate(()=>{leadDetail(leadState.leads.findIndex(l=>l.name==='学制联动测试'),'quickRegister');leadOpenForm('edit')});assert.equal(await page.getByRole('radio',{name:'五四制',exact:true}).isChecked(),true);assert.deepEqual(await years(),['2021','2026','2030']);assert.deepEqual(errors,[]);
  console.log('PASS browser: default 63, forward/reverse year inference, 54 switching, add/remove school, save/reload/edit with preserved system and years.');

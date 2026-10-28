@@ -27,7 +27,7 @@ function leadAssignmentCandidates(query='',sort=leadState.candidateSort||'conver
 }
 function leadMultiCandidateRows(query=''){
   const ids=leadAssignmentIds(),people=leadAssignmentCandidates(query);
-  return people.length?people.map(p=>`<label class="lead-candidate lead-multi-candidate ${ids.includes(p.index)?'selected':''}"><span class="lead-multi-person"><input type="checkbox" aria-label="选择${esc(p.name)}" ${ids.includes(p.index)?'checked':''} onchange="leadSelectAssignee(${p.index})"><span><strong>${esc(p.name)}</strong><small>${esc(p.campus||'未设置校区')} · 招生岗 · ${esc(p.account||p.phone||'')}</small></span></span><span><b>转化率 ${p.conversionRate??'—'}%</b> · 待跟进 ${p.pendingLeads??'—'}</span></label>`).join(''):'<p class="help">未找到在职且具有招生权限的同事</p>';
+  return people.length?people.map(p=>`<label class="lead-candidate lead-multi-candidate ${ids.includes(p.index)?'selected':''}"><span class="lead-multi-person"><input type="checkbox" aria-label="选择${esc(p.name)}" ${ids.includes(p.index)?'checked':''} onchange="leadSelectAssignee(${p.index})"><span><strong>${esc(p.name)}</strong><small>${esc(staffCampusNames(p).join('、')||'分校')} · 招生岗 · ${esc(p.account||p.phone||'')}</small></span></span><span><b>转化率 ${p.conversionRate??'—'}%</b> · 待跟进 ${p.pendingLeads??'—'}</span></label>`).join(''):'<p class="help">未找到在职且具有招生权限的同事</p>';
 }
 function leadAssignmentSelection(){
   const ids=leadAssignmentIds();
@@ -81,8 +81,19 @@ assignLead=function(){
   const old=lead.owner,reassign=!['new','recycle'].includes(lead.status);
   if(reassign&&people.length===leadOwnerNames(lead).length&&people.every(p=>leadHasOwner(lead,leadStaffIdentity(p)))){leadCloseAssignment();toast('负责人员未变更');return}
   leadSetOwners(lead,people);if(lead.stage!=='已报名')lead.stage='新分配';leadResetFollowupCycle(lead);
+  delete lead.assignmentQueue;
   lead.history.push(leadHistoryEntry(reassign?'改派':'分配',`${reassign?'原负责人：'+old+'；':''}线索分配给${people.map(p=>leadIdentityLabel(leadStaffIdentity(p))).join('、')}。保留完整跟进档案。`,{assignees:lead.assignees.map(p=>({...p}))}));
   leadState.assignmentDraft=null;leadState.modal=null;leadRender();toast(reassign?'线索已改派':'线索已分配');
 };
 const leadAssignmentPreviousRender=leadRender;
 leadRender=function(){if(leadState.modal!=='assign')leadState.assignmentDraft=null;return leadAssignmentPreviousRender()};
+
+// 非招生登记按归属校区进入招生组长待分配队列，招生负责人在实际分配时写入。
+const leadCampusPreviousManagePage=leadManagePage;
+leadManagePage=function(){
+  if(leadState.manageTab!=='新线索')return leadCampusPreviousManagePage();
+  const all=leadState.leads.map((l,index)=>({...l,index})).filter(l=>l.status==='new'&&leadManagementVisible(l));
+  const rows=all;
+  const tabs=leadManageTabs();
+  return leadManageHeading('新线索、回收、预警、归档与已分配线索的管理入口')+`<div class="card pad">${leadSegments(tabs,'新线索','setManageTab')}<div class="lead-tip">非招生登记的线索进入归属校区招生组长待分配队列，分配后由招生人员跟进。</div>${aTable(['学生 / 家长','归属校区','年级','意向学科','待分配至','详情','分配'],rows.map(l=>`<tr><td>${leadPerson(l)}</td><td>${esc(l.ownershipCampus||'未记录')}</td><td>${esc(l.grade)}</td><td>${esc(l.subject)}</td><td>${esc(leadCampusQueueLabel(l))}</td><td><button class="btn small" onclick="leadDetail(${l.index},'leadManage')">详情</button></td><td><button class="btn small primary" onclick="leadState.selected=${l.index};leadState.modal='assign';leadRender()">分配</button></td></tr>`))}${rows.length?'':'<div class="empty">暂无待分配线索</div>'}<div class="data-bar">共 ${rows.length} 条线索</div></div>`;
+};

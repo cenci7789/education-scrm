@@ -6,7 +6,7 @@ for(const file of ['attendance-filters.js','makeup-picker.js','makeup-resolution
 run("permissionChangeIdentity('admin');nav('makeup')");
 assert(page().includes('makeupResolutionOpen(1)'));assert(!page().includes(".makeup='不补课'"));
 const original=run('JSON.stringify(a.attendance[1])');
-run('makeupResolutionOpen(1)');assert(page().includes('是否销课'));assert(page().includes('不销课，计入课时余额'));assert(!page().includes('value="consume" checked'));
+run('makeupResolutionOpen(1)');assert(page().includes('是否销课'));assert(page().includes('不销课，课时挂起'));assert(!page().includes('value="consume" checked'));
 run('makeupResolutionSave()');assert.equal(run('a.lessonConsumptionRecords.length'),0);assert.equal(run('JSON.stringify(a.attendance[1])'),original,'selection is required');
 run("makeupResolutionChoose('consume');makeupResolutionCancel()");assert.equal(run('JSON.stringify(a.attendance[1])'),original,'cancel has no effects');
 run("makeupResolutionOpen(1);makeupResolutionChoose('consume');makeupResolutionSave()");
@@ -23,9 +23,9 @@ run("a.modal=null;nav('makeup');a.attendance[2].makeupPlan={classId:'other',sess
 assert.equal(run('a.lessonBalanceRecords.length'),1);assert.equal(run('a.lessonConsumptionRecords.length'),1);assert.equal(run('a.attendance[2].attendance'),'旷课');
 assert.equal(run('makeupCourseBalance(a.students[2].id,a.classes[2].course)'),1);assert.equal(run('makeupCourseBalance(a.students[1].id)'),0);
 assert.equal(run('a.attendance[2].makeupPlan'),undefined);assert.equal(run('a.attendance[2].cancelledMakeupPlan.classId'),'other');
-assert(page().includes('已计入课时余额 · +1 次'));
-assert(run('studentProfileCourses(a.students[2])').includes('课时余额'));assert(run('studentProfileCourses(a.students[2])').includes('1 次'));
-run('makeupResolutionSave();makeupResolutionOpen(2)');assert.equal(run('makeupCourseBalance(a.students[2].id)'),1,'cannot credit twice');assert(page().includes('课时余额记录'));
+assert(page().includes('已计入挂起课时 · +1 次'));
+assert(run('studentProfileCourses(a.students[2])').includes('挂起课时'));assert(run('studentProfileCourses(a.students[2])').includes('1 次'));
+run('makeupResolutionSave();makeupResolutionOpen(2)');assert.equal(run('makeupCourseBalance(a.students[2].id)'),1,'cannot credit twice');assert(page().includes('挂起课时记录'));
 run("a.modal=null;makeupSetListFilter('status','不补课')");assert(node('#makeup-list-results').innerHTML.includes('共 1 条记录'));
 run("makeupSetListFilter('student','李同学')");assert(node('#makeup-list-results').innerHTML.includes('共 0 条记录'));
 run("makeupSetListFilter('student','');makeupSetListFilter('status','');a.attendance[0].attendance='请假';makeupResolutionOpen(0);makeupResolutionChoose('balance');a.attendance[0].attendance='出勤';makeupResolutionSave()");assert.equal(run('a.lessonBalanceRecords.length'),1,'changed attendance rejected');

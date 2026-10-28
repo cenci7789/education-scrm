@@ -3,7 +3,7 @@ const { run, node, page } = require('./lead-registration.cjs');
 run("permissionChangeIdentity('admin');leadDetail(0,'myLeads')");
 const actions = page().match(/<footer class="lead-detail-dock"[^>]*>([\s\S]*?)<\/footer>/)[1];
 let previousPosition = -1;
-for (const label of ['去沟通', '约试听', '去报名', '转同事', '回公海', '冷宫池']) {
+for (const label of ['去沟通', '约试听', '去报名', '回公海', '冷宫池']) {
   const position = actions.indexOf(label);
   assert(position > previousPosition);
   previousPosition = position;
@@ -58,11 +58,11 @@ run('trialNextStep()');
 assert.equal(run('trialState.step'), 2);
 assert.equal(run('leadState.leads[0].history.length'), beforeTrial);
 node('#trial-time').value = `${new Date().getFullYear()+1}-12-01T10:00`;
-run(`trialToggleClass(a.classes[0].id,true);trialState.draft.classes[0].preferredTime='${new Date().getFullYear()+1}-12-01T10:00'`);
+run(`a.classes[0].sessions=[{id:'ACTION-TRIAL',startsAt:'${new Date().getFullYear()+1}-12-01T10:00',time:'10:00–12:00',name:'第1讲'}];trialToggleClass(a.classes[0].id,true);Object.assign(trialState.draft.classes[0],{sessionId:'ACTION-TRIAL',preferredTime:'${new Date().getFullYear()+1}-12-01T10:00'})`);
 run('trialNextStep();trialSubmit()');
 assert.equal(run('trialState.requests.length'), 1);
-assert.equal(run('trialState.requests[0].status'), '待排班');
-assert.equal(run('leadState.leads[0].history.at(-1)[0]'), '预约试听');
+assert.equal(run('trialState.requests[0].status'), '已排班');
+assert.equal(run('leadState.leads[0].history.at(-1)[0]'), '试听排班');
 run("leadDetail(0,'myLeads')");
 assert(page().includes('测试试听'));
 
@@ -75,7 +75,7 @@ run('leadState.modal=null;leadRender()');
 assert.equal(run('JSON.stringify(leadState.leads[0])'), beforePool);
 run("leadOpenAction('publicPool')");
 node('#lead-public-reason').value = '重新分配';
-run('leadReturnPublicPool()');
+node('#lead-public-campus').value=run('state.campuses.find(c=>c.active).name');run('leadReturnPublicPool()');
 assert.equal(run('leadState.leads[0].owner'), '未分配');
 assert.equal(run('leadState.leads[0].status'), 'recycle');
 assert.equal(run('leadState.leads[0].next'), '未约定');

@@ -1,13 +1,15 @@
 // One atomic local IndexedDB snapshot for committed business records and their uploaded files.
 // Form, live-code and storefront publishers retain their existing, independent local stores.
 const businessStorage={ready:false,busy:false,dirty:false,error:'',db:null,blobs:new Map(),last:'',queued:false,revision:0,conflict:false};
-const businessAcademicKeys=['courses','classes','students','orders','attendance','refundApplications','refundRecords','accountTransactions','transferRecords','tempMoveRecords','lessonConsumptionRecords','lessonBalanceRecords','supplementRecords','couponClaims','renewalPeriods'];
+const businessAcademicKeys=['courses','classes','students','orders','attendance','refundApplications','refundRecords','accountTransactions','transferRecords','tempMoveRecords','lessonConsumptionRecords','lessonBalanceRecords','supplementRecords','couponClaims','renewalPeriods','renewalDiscounts'];
 function businessSnapshot(){return JSON.parse(JSON.stringify({version:1,settings:{campuses:state.campuses,staff:state.staff,config:state.config,organization:state.organization,importHistory:state.importHistory},academic:Object.fromEntries(businessAcademicKeys.map(k=>[k,a[k]||[]])),leads:leadState.leads,communicationSummaries:[...studentCommunicationSummaries],trials:{requests:trialState.requests,sequence:trialState.sequence},permissions:{roles:permissionState.roles,logs:permissionState.logs},mall:{shelved:mallState.shelved,hiddenShelved:mallState.hiddenShelved,activities:mallState.activities,offered:mallShelfState.offered}},(key,value)=>['controller','signal','recorder','stream','file','busy','aiBusy'].includes(key)?undefined:value))}
 function businessRestore(snapshot){
  if(!snapshot||snapshot.version!==1||!Array.isArray(snapshot.academic?.students)||!Array.isArray(snapshot.academic?.courses)||!Array.isArray(snapshot.settings?.campuses)||!Array.isArray(snapshot.leads))throw Error('invalid snapshot');
  Object.assign(state,snapshot.settings);for(const key of businessAcademicKeys)if(Array.isArray(snapshot.academic[key]))a[key]=snapshot.academic[key];
  if(!Array.isArray(snapshot.academic.renewalPeriods))a.renewalPeriods=[];
+ if(!Array.isArray(snapshot.academic.renewalDiscounts))a.renewalDiscounts=[];
  leadState.leads=snapshot.leads;studentCommunicationSummaries.clear();for(const [key,value] of snapshot.communicationSummaries||[])studentCommunicationSummaries.set(key,value);Object.assign(trialState,snapshot.trials);Object.assign(permissionState,snapshot.permissions);
+ if(typeof leadEnsureCampusAdminRole==='function')leadEnsureCampusAdminRole();
  permissionState.selected=permissionState.roles.some(r=>r.id===permissionState.selected)?permissionState.selected:permissionState.roles[0]?.id;
  permissionState.working=new Set(permissionRole(permissionState.selected)?.grants||[]);
  if(snapshot.mall){mallState.shelved=snapshot.mall.shelved||[];mallState.hiddenShelved=snapshot.mall.hiddenShelved||[];mallState.activities=snapshot.mall.activities||{};mallShelfState.offered=snapshot.mall.offered||{}}

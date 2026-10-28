@@ -27,11 +27,11 @@ node('#follow-note').value = '约好下周试听';
 node('#follow-channel').value = '电话';
 node('#communication-result').value = '有效沟通';
 node('#communication-intent').value = 'unknown';
-node('#follow-time').value = '2026-10-27T16:00';
+node('#follow-time').value = `${new Date().getFullYear()+1}-10-27T16:00`;
 run('saveFollow()');
 assert.equal(run('leadState.leads[0].history.length'), count + 1);
 assert(page().includes('约好下周试听'));
-assert(page().includes('2026-10-27 16:00'));
+assert(page().includes(`${new Date().getFullYear()+1}-10-27 16:00`));
 run('leadRefreshSummary()');
 assert.equal(run('leadState.leads[0].history.length'), count + 1);
 

@@ -9,7 +9,7 @@ assert(!page().match(/<details class="enrollment-optional"[^>]*\sopen[ >]/));
 const optional=page().slice(page().indexOf('<details class="enrollment-optional"'));
 assert(page().includes('展开更多'));assert(page().includes('收起更多'));
 assert(!page().includes('选填信息'));
-const ordered=['>公立学校</label>','>学生性别</label>','>咨询家长</label>','>来源渠道</label>','>信息记录</label>'];
+const ordered=['>公立学校</label>','>学生性别</label>','>招生家长</label>','>来源渠道</label>','>信息记录</label>'];
 for(let i=1;i<ordered.length;i++)assert(optional.indexOf(ordered[i])>optional.indexOf(ordered[i-1]),ordered[i]);
 assert(optional.includes('上传图片'));assert(optional.includes('直接录音'));assert(optional.includes('上传语音'));
 const query=context.document.querySelector,queryAll=context.document.querySelectorAll;

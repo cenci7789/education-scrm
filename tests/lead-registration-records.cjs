@@ -6,7 +6,7 @@ context.URL={createObjectURL:()=>`blob:registration-${++sequence}`,revokeObjectU
 context.AbortController=AbortController;context.File=File;
 run("permissionChangeIdentity('admin');state.page='quickRegister';render()");
 function open(){run('leadOpenForm()');node('#lead-name').value='';node('#lead-note').value=''}
-function fill(){node('#lead-name').value='资料登记学生';node('#lead-phone').value='13812345678';node('#lead-note').value='家长咨询数学'}
+function fill(){node('#lead-name').value='资料登记学生';node('#lead-phone').value='13812345678';node('#lead-note').value='家长招生数学'}
 function add(){run("leadAddRecordFiles([{name:'需求截图.png',size:100,type:'image/png'}],'image')")}
 async function test(){
   open();assert(!page().includes('modal-backdrop'));assert(page().includes('lead-registration-record'));
@@ -16,7 +16,7 @@ async function test(){
   run('saveLead()');assert.equal(run('leadState.leads.length'),before);
   assert.equal(run('leadRecordDraft.items.length'),1);assert(!revoked.includes(url));
   fill();run("leadSwitchRegistration('import');leadSwitchRegistration('single')");
-  assert.equal(node('#lead-note').value,'家长咨询数学');assert.equal(run('leadRecordDraft.items.length'),1);
+  assert.equal(node('#lead-note').value,'家长招生数学');assert.equal(run('leadRecordDraft.items.length'),1);
   let resolve;
   context.crmTranscribeAttachment=()=>new Promise(r=>{resolve=r});
   const task=run('leadTranscribeRecord(leadRecordDraft.items[0].id)');

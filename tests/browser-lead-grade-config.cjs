@@ -3,6 +3,7 @@ const {chromium}=require(path.join(process.env.USERPROFILE,'.cache/codex-runtime
 (async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
  const page=await browser.newPage({viewport:{width:1440,height:1050}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(require('node:url').pathToFileURL(path.resolve(__dirname,'../index.html')).href);await page.waitForFunction(()=>businessStorage.ready&&!businessStorage.busy);
+ await page.evaluate(()=>state.campuses.push({name:'登记验收校区',active:true,classrooms:[]}));
  const teaching=async()=>{await page.locator('[data-page="teaching"]').click();await page.getByRole('button',{name:'年级配置',exact:true}).click()};
  const register=async()=>{await page.locator('[data-page="quickRegister"]').click();await page.locator('button[onclick="leadOpenForm()"]:visible').first().click()};
  const options=()=>page.locator('#lead-grade option:not([disabled])').evaluateAll(els=>els.map(e=>e.value).filter(Boolean));
@@ -11,7 +12,7 @@ const {chromium}=require(path.join(process.env.USERPROFILE,'.cache/codex-runtime
  const schoolYear=new Date().getFullYear()-(new Date().getMonth()<8?1:0);
  await page.locator('.lead-school-year').selectOption(String(schoolYear));assert.equal(await page.locator('#lead-grade').inputValue(),'1年级');
  await page.locator('.lead-school-year').selectOption(String(schoolYear-8));assert.equal(await page.locator('#lead-grade').inputValue(),'');assert.match(await page.locator('#lead-school-grade-result').innerText(),/未匹配/);
- await page.locator('.lead-school-year').selectOption('');await page.locator('#lead-grade').selectOption('学前班');await page.locator('#lead-name').fill('配置年级测试');await page.locator('#lead-phone').fill('13845670001');await page.getByRole('button',{name:'保存登记',exact:true}).click();assert.equal(await page.evaluate(()=>leadState.leads[0].grade),'学前班');
+ await page.locator('.lead-school-year').selectOption('');await page.locator('#lead-grade').selectOption('学前班');await page.locator('#lead-name').fill('配置年级测试');await page.locator('#lead-phone').fill('13845670001');await page.locator('#lead-ownership-campus').selectOption('登记验收校区');await page.getByRole('button',{name:'保存登记',exact:true}).click();assert.equal(await page.evaluate(()=>leadState.leads[0].grade),'学前班');
  await teaching();await page.locator('tr').filter({has:page.getByRole('cell',{name:'学前班',exact:true})}).getByRole('button',{name:'停用',exact:true}).click();
  await register();assert(!(await options()).includes('学前班'));
  await page.evaluate(()=>{leadDetail(0,'quickRegister');leadOpenForm('edit')});assert.equal(await page.locator('#lead-grade').inputValue(),'学前班');assert.equal(await page.locator('#lead-grade option:checked').isDisabled(),true);await page.getByRole('button',{name:'保存修改',exact:true}).click();assert.equal(await page.evaluate(()=>leadState.leads[0].grade),'学前班');

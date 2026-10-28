@@ -28,7 +28,7 @@ function trialStudentForm(){
       <div class="lead-form-grid" id="trial-more-fields">
         <div class="field full"><label>公立学校</label><div id="trial-schools">${d.schools.map((s,i)=>trialSchoolRow(s,i>0)).join('')}</div></div>
         ${aField('学生性别',`<div class="lead-radio"><label><input type="radio" name="trial-gender" value="" ${!d.gender?'checked':''}> 未填写</label>${['男','女'].map(g=>`<label><input type="radio" name="trial-gender" value="${g}" ${d.gender===g?'checked':''}> ${g}</label>`).join('')}</div>`)}
-        ${aField('咨询家长',enrollmentSelect('trial-guardian',['妈妈','爸爸','其他'],d.guardian,'请选择关系'))}
+        ${aField('招生家长',enrollmentSelect('trial-guardian',['妈妈','爸爸','其他'],d.guardian,'请选择关系'))}
         ${aField('来源渠道',enrollmentSelect('trial-source',['主动来电','家长上门','转介绍','地推扫码','公众号','活动报名','宣传物料扫码'],d.source,'请选择来源'))}
         <div class="field full">${leadRecordEditor('信息记录')}</div>
       </div>

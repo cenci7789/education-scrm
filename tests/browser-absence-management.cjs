@@ -1,0 +1,34 @@
+const assert=require('node:assert/strict'),path=require('node:path'),fs=require('node:fs');
+const {chromium}=require(path.join(process.env.USERPROFILE,'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright'));
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1050},timezoneId:'Asia/Shanghai'}),errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(10000);
+ await page.clock.setFixedTime(new Date('2026-10-27T12:00:00+08:00'));
+ await page.goto(require('node:url').pathToFileURL(path.resolve(__dirname,'../index.html')).href);await page.waitForFunction(()=>businessStorage.ready&&!businessStorage.busy);
+ await page.evaluate(()=>{
+  permissionState.identity='admin';state.campuses=[{name:'测试校区',active:true,classrooms:[{name:'101教室',capacity:20}]}];state.staff=[{name:'张老师',roleId:'teacher',roles:'授课老师',active:true,campus:'测试校区'}];
+  a.courses=[{name:'秋季数学',subject:'数学',grade:'初一',category:'班课',format:'面授'}];a.classes=[{id:'C1',name:'秋季数学班',course:'秋季数学',campus:'测试校区',teacher:'张老师',room:'101教室',capacity:20,students:3,sessions:[{id:'L1',number:1,date:'2026-10-20',time:'09:00–10:00'},{id:'L2',number:2,date:'2026-11-03',time:'09:00–10:00'}]}];
+  a.students=['甲','乙','丙'].map((name,i)=>({id:'S'+i,name:name+'学生',phone:'13800000000'}));a.attendance=a.students.map((s,i)=>({studentId:s.id,classId:'C1',sessionId:'L1',session:'第1讲',date:'2026-10-20',time:'09:00–10:00',attendance:i===1?'旷课':'请假',status:'已考勤'}));a.orders=[];a.lessonBalanceRecords=[];a.lessonConsumptionRecords=[];a.tempMoveRecords=[];trialState.requests=[];nav('makeup');
+ });
+ assert(await page.getByRole('heading',{name:'缺勤管理',exact:true}).isVisible());assert.equal(await page.locator('[data-page="makeup"]').innerText(),'缺勤管理');
+ const tab=name=>page.getByRole('button',{name:new RegExp('^'+name+' \\d+$')}),row=name=>page.locator('#makeup-list-results tbody tr').filter({hasText:name});
+ await row('甲学生').getByText('不补课',{exact:true}).click();await page.getByRole('radio',{name:/不销课，课时挂起/}).check();await page.getByRole('button',{name:'确认处理',exact:true}).click();
+ await tab('课时挂起').click();assert.equal(await row('甲学生').count(),1);
+ await row('甲学生').getByText('补课',{exact:true}).click();assert(await page.getByRole('dialog').getByRole('button',{name:'跟班补课',exact:true}).isVisible());await page.getByRole('button',{name:'单独补课',exact:true}).click();
+ await page.getByLabel('补课日期',{exact:true}).fill('2026-10-28');await page.getByLabel('开始时间',{exact:true}).fill('09:00');await page.getByLabel('结束时间',{exact:true}).fill('10:00');
+ const out=path.resolve(__dirname,'../.artifact-work/audit');fs.mkdirSync(out,{recursive:true});await page.screenshot({path:path.join(out,'absence-individual-form.png')});
+ await page.getByRole('button',{name:'确认补课',exact:true}).click();assert((await row('甲学生').innerText()).includes('单独补课'));assert.equal(await page.evaluate(()=>a.classes.length),1);assert.equal(await page.evaluate(()=>scheduleLessons().length),2);
+ await row('甲学生').getByText('考勤',{exact:true}).click();assert.equal(await page.getByRole('button',{name:'保存考勤',exact:true}).count(),0);await page.getByRole('dialog').getByRole('button',{name:'关闭',exact:true}).first().click();
+ await page.clock.setFixedTime(new Date('2026-10-29T12:00:00+08:00'));await row('甲学生').getByText('考勤',{exact:true}).click();await page.getByLabel('补课出勤情况').selectOption('出勤');await page.getByRole('button',{name:'保存考勤',exact:true}).click();assert.equal(await page.evaluate(()=>a.lessonConsumptionRecords.length),1);
+ await tab('缺勤记录').click();await row('乙学生').getByText('不补课',{exact:true}).click();await page.getByRole('radio',{name:/不销课，课时挂起/}).check();await page.getByRole('button',{name:'确认处理',exact:true}).click();await tab('课时挂起').click();
+ await row('乙学生').getByText('销课',{exact:true}).click();await page.getByRole('button',{name:'确认销课',exact:true}).click();assert.equal(await page.locator('#makeup-list-results tbody tr').count(),0);
+ await tab('缺勤记录').click();await row('丙学生').getByText('补课',{exact:true}).click();await page.getByRole('button',{name:'跟班补课',exact:true}).click();
+ await page.getByRole('button',{name:'选择课节',exact:true}).click();await page.getByRole('radio',{name:'选择第2讲',exact:true}).check();await page.getByRole('button',{name:'确认补课',exact:true}).click();assert((await row('丙学生').innerText()).includes('跟班补课'));
+ await page.screenshot({path:path.join(out,'absence-makeup-records.png')});
+ await tab('缺勤记录').click();await page.screenshot({path:path.join(out,'absence-records.png')});assert.equal(await page.locator('#makeup-list-results tbody tr').count(),0);assert(await tab('缺勤记录').filter({hasText:'0'}).isVisible());
+ await tab('课消记录').click();assert.equal(await row('乙学生').count(),1);assert((await row('乙学生').innerText()).includes('按出勤核销'));assert.equal(await row('甲学生').count(),0);await page.screenshot({path:path.join(out,'absence-consumption-records.png')});
+ await page.waitForFunction(()=>businessStorage.ready&&!businessStorage.busy&&!businessStorage.dirty&&!businessStorage.queued);
+ await page.reload();await page.waitForFunction(()=>businessStorage.ready&&!businessStorage.busy);await page.evaluate(()=>{permissionState.identity='admin';nav('makeup')});await tab('补课记录').click();assert.equal(await page.locator('#makeup-list-results tbody tr').count(),2);assert.equal(await page.evaluate(()=>makeupCourseBalance('S0')+makeupCourseBalance('S1')),0);
+ await tab('缺勤记录').click();assert.equal(await page.locator('#makeup-list-results tbody tr').count(),0);await tab('课消记录').click();assert.equal(await row('乙学生').count(),1);
+ assert.equal(await page.evaluate(()=>a.lessonConsumptionRecords.length),2);assert.deepEqual(errors,[]);
+ console.log('PASS browser: absence tabs, hold resume and consumption, standalone form and attendance, follow-class picker, no paid timetable entries and persistence after reload.');
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

@@ -3,7 +3,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {run,node,page,context}=require('./lead-registration.cjs');
 context.URL={createObjectURL:()=> 'blob:first-record',revokeObjectURL(){}};
-run("permissionChangeIdentity('admin');state.config.年级.push(['初二',true,'初二',true]);state.page='quickRegister';render()");
+run("permissionChangeIdentity('admin');state.config.年级.push(['初二',true,'初二',true]);state.page='myLeads';render()");
 const originalQuery=context.document.querySelector,originalQueryAll=context.document.querySelectorAll;
 for(const mode of ['uniform','self','specific']){
   run('leadOpenForm()');
@@ -17,7 +17,7 @@ for(const mode of ['uniform','self','specific']){
   const expected=mode==='uniform'?'统一分配':mode==='self'?'王敏-wangmin':'孙倩-sunqian';
   assert.equal(run('leadState.leads[0].history.length'),1,'initial note and attachments belong to one entry');
   assert.equal(run('leadState.leads[0].history[0][0]'),'建档');
-  assert.equal(run('leadState.leads[0].history[0][2]'),`就读年级：初二，意向校区：园区校区，意向学科：数学、英语\n分配咨询：${expected}\n${fields['lead-note']}`);
+  assert.equal(run('leadState.leads[0].history[0][2]'),`就读年级：初二，意向学科：数学、英语\n分配招生：${expected}\n${fields['lead-note']}`);
   assert.equal(run('leadState.leads[0].history[0][3].files[0].url'),'blob:first-record');
   assert.equal(run('leadState.leads[0].history[0][3].operator.name'),'王敏','operator is the registrar, not assigned consultant');
   assert.equal(run('leadState.leads[0].history[0][3].operator.account'),'wangmin');
@@ -28,7 +28,7 @@ for(const mode of ['uniform','self','specific']){
   const saved=run('JSON.stringify(leadState.leads[0].history)');
   run("leadState.leads[0].owner='李强';leadState.leads[0].grade='高一';leadState.leads[0].campus='新校区';leadRender()");
   assert.equal(run('JSON.stringify(leadState.leads[0].history)'),saved,'history is a creation-time snapshot');
-  run("leadNav('quickRegister')");
+  run("leadNav('myLeads')");
 }
 // Registration without a note still creates exactly one complete record.
 run('leadOpenForm()');node('#lead-note').value='';run('saveLead()');
@@ -56,7 +56,7 @@ run(fs.readFileSync(path.join(__dirname,'..','marketing-forms.js'),'utf8'));
 run("var intakeForm={title:'资料领取',settings:{download:{enabled:true}},fields:[{title:'姓名',type:'name'},{title:'电话',type:'phone'}]};mfCaptureLead(intakeForm,{'姓名':'自动建档','电话':'13712345678'})");
 assert.equal(run('leadState.leads[0].history.length'),1);
 assert.equal(run('leadState.leads[0].history[0][0]'),'建档');
-assert(run('leadState.leads[0].history[0][2]').includes('分配咨询：统一分配'));
+assert(run('leadState.leads[0].history[0][2]').includes('分配招生：统一分配'));
 assert.equal(run('leadState.leads[0].history[0][3].operator.account'),'system');
 run("mfCaptureLead(intakeForm,{'姓名':'自动建档','电话':'13712345678'})");
 assert.equal(run('leadState.leads[0].history.at(-1)[3].operator.name'),'系统');

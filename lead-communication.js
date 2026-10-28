@@ -65,14 +65,14 @@ function leadAppendCommunication(lead,text,files,data,title){
 }
 function leadCommunicationMetadataHTML(attachment){
   const data=attachment?.communication;if(!data)return '';
-  return `<div class="communication-history"><span>${esc(data.channel)} · ${esc(data.result)}</span><span>意向：${esc(data.previousIntent||'待判断')}${data.intent!==data.previousIntent?' → '+esc(data.intent||'待判断'):'（保持不变）'}${data.decision==='unknown'?' · 本次暂无法判断':''}</span>${data.reason?`<span>变更原因：${esc(data.reason)}</span>`:''}${data.nextTime?`<span>下次跟进：${esc(data.nextTime.replace('T',' '))}</span>`:''}${data.nextAction?`<span>下一步安排：${esc(leadCompletionActions[data.nextAction]||data.nextAction)}</span>`:''}</div>`;
+  return `<div class="communication-history"><span>${esc(data.channel)} · ${esc(data.result)}</span><span>意向：${esc(data.previousIntent||'待判断')}${data.intent!==data.previousIntent?' → '+esc(data.intent||'待判断'):'（保持不变）'}${data.decision==='unknown'?' · 本次暂无法判断':''}</span>${data.reason?`<span>变更原因：${esc(data.reason)}</span>`:''}${data.nextTime?`<span>下次跟进：${esc(data.nextTime.replace('T',' '))}</span>`:''}${data.nextAction?`<span>下一步安排：${esc(leadCompletionActions[data.nextAction]||(data.nextAction==='colleague'?'转同事':data.nextAction))}</span>`:''}</div>`;
 }
 function leadFollowCommunicationForm(){
   return leadCommunicationFields()+`<div class="field"><label class="required" for="follow-note">沟通说明</label><textarea class="textarea" id="follow-note" placeholder="请填写家长反馈、主要顾虑和下一步安排"></textarea></div><div class="modal-actions"><button class="btn" onclick="leadState.modal=null;leadRender()">取消</button><button class="btn primary" onclick="saveFollow()">保存跟进</button></div>`;
 }
-const leadCompletionActions={follow:'下次跟进',trial:'约试听',enroll:'去报名',colleague:'转同事',publicPool:'回公海',cold:'冷宫池'};
+const leadCompletionActions={follow:'下次跟进',trial:'约试听',enroll:'去报名',publicPool:'回公海',cold:'冷宫池'};
 function leadFollowDock(){
-  return `<footer class="lead-detail-dock" aria-label="跟进操作"><div class="lead-detail-dock-inner"><strong>跟进操作</strong><button class="btn small lead-call-action" onclick="leadOpenCommunicationChoice()">去沟通</button><button class="btn small" onclick="leadOpenAction('trial')">约试听</button><button class="btn small lead-enroll-action" onclick="leadToEnrollment()">去报名</button><button class="btn small" onclick="leadOpenAction('colleague')">转同事</button><button class="btn small" onclick="leadOpenAction('publicPool')">回公海</button><button class="btn small" onclick="leadState.modal='cold';leadRender()">冷宫池</button></div></footer>`;
+  return `<footer class="lead-detail-dock" aria-label="跟进操作"><div class="lead-detail-dock-inner"><strong>跟进操作</strong><button class="btn small lead-call-action" onclick="leadOpenCommunicationChoice()">去沟通</button><button class="btn small" onclick="leadOpenAction('trial')">约试听</button><button class="btn small lead-enroll-action" onclick="leadToEnrollment()">去报名</button><button class="btn small" onclick="leadOpenAction('publicPool')">回公海</button><button class="btn small" onclick="leadState.modal='cold';leadRender()">冷宫池</button></div></footer>`;
 }
 function leadOpenCommunicationChoice(){if(!leadRequireFollow())return;leadState.modal='communicationChoice';leadRender()}
 function leadCommunicationChoicePage(){

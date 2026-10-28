@@ -4,13 +4,37 @@ function teachingDefaultTermRead(page){
   try{const value=JSON.parse(globalThis.localStorage?.getItem(teachingDefaultTermKey(page))||'null');return value?.version===1&&typeof value.term==='string'&&value.term!=='__unknown'?value.term:null}catch{return null}
 }
 function teachingDefaultTermFilters(page){return page==='students'?studentTermView():classManagementFilters()}
+let teachingTermOpenPage='';
+function teachingTermOptions(page){return [['','全部学期'],...(page==='students'?studentTermFilterOptions('term',studentTermRows()):classManagementOptions('term'))]}
 function teachingDefaultTermControls(page){
-  const selected=teachingDefaultTermFilters(page).term,saved=teachingDefaultTermRead(page),same=saved!==null&&saved===selected;
-  return `<button type="button" class="btn small term-default-button" ${same||selected==='__unknown'?'disabled':''} onclick="teachingDefaultTermSave('${page}')">${same?'已设为默认':'设为默认'}</button>${saved!==null?`<span class="help term-default-note">默认：${esc(saved?classManagementTermLabel(saved):'全部学期')}</span>`:''}`;
+  const selected=teachingDefaultTermFilters(page).term,saved=teachingDefaultTermRead(page),open=teachingTermOpenPage===page;
+  const arg=value=>`decodeURIComponent('${encodeURIComponent(value).replace(/'/g,'%27')}')`;
+  return `<button type="button" class="select teaching-term-trigger" id="teaching-term-trigger-${page}" aria-label="学期" aria-haspopup="dialog" aria-expanded="${open}" aria-controls="teaching-term-menu-${page}" onclick="teachingTermToggle('${page}')"><span>${esc(selected?classManagementTermLabel(selected):'全部学期')}</span><span aria-hidden="true">⌄</span></button><div class="teaching-term-menu" id="teaching-term-menu-${page}" role="dialog" aria-label="选择学期" ${open?'':'hidden'}>${teachingTermOptions(page).map(([value,label])=>`<div class="teaching-term-row ${value===selected?'selected':''}" data-term="${esc(value)}"><button type="button" class="teaching-term-option" aria-pressed="${value===selected}" onclick="teachingTermChoose('${page}',${arg(value)})">${esc(label)}${value===saved?'<span class="teaching-term-default-mark">默认</span>':''}</button>${value==='__unknown'?'':`<button type="button" class="teaching-term-default-action" aria-label="${value===saved?'取消默认':'设为默认'}：${esc(label)}" onclick="teachingTermToggleDefault('${page}',${arg(value)})">${value===saved?'取消默认':'设为默认'}</button>`}</div>`).join('')}</div>`;
 }
-function teachingDefaultTermSave(page){
+function teachingTermToggle(page){
   if(!['students','classes'].includes(page)||!permissionCanVisit(page))return;
-  const term=teachingDefaultTermFilters(page).term;
+  const previous=teachingTermOpenPage;teachingTermOpenPage=previous===page?'':page;
+  if(previous&&previous!==page)teachingDefaultTermRefresh(previous);
+  teachingDefaultTermRefresh(page);
+  if(teachingTermOpenPage)$('#teaching-term-menu-'+page)?.querySelector('.teaching-term-option')?.focus();
+}
+function teachingTermClose(focus=false){const page=teachingTermOpenPage;if(!page)return;teachingTermOpenPage='';teachingDefaultTermRefresh(page);if(focus)$('#teaching-term-trigger-'+page)?.focus()}
+function teachingTermChoose(page,term){
+  if(!['students','classes'].includes(page)||!permissionCanVisit(page)||!teachingTermOptions(page).some(([value])=>value===term))return;
+  teachingTermOpenPage='';
+  if(page==='students')studentTermSetFilter('term',term);else classManagementSetFilter('term',term);
+  $('#teaching-term-trigger-'+page)?.focus();
+}
+function teachingTermToggleDefault(page,term){
+  if(!['students','classes'].includes(page)||!permissionCanVisit(page)||term==='__unknown'||!teachingTermOptions(page).some(([value])=>value===term))return;
+  if(teachingDefaultTermRead(page)!==term){teachingDefaultTermSave(page,term);return}
+  try{if(!globalThis.localStorage)throw Error('storage unavailable');globalThis.localStorage.removeItem(teachingDefaultTermKey(page))}catch{toast('浏览器未能取消默认学期，请重试');return}
+  teachingDefaultTermRefresh(page);toast('已取消默认学期');
+}
+document.addEventListener?.('click',event=>{if(teachingTermOpenPage&&!event.composedPath().some(node=>node.classList?.contains('teaching-term-picker')))teachingTermClose()});
+document.addEventListener?.('keydown',event=>{if(teachingTermOpenPage&&event.key==='Escape'){event.preventDefault();teachingTermClose(true)}});
+function teachingDefaultTermSave(page,term=teachingDefaultTermFilters(page).term){
+  if(!['students','classes'].includes(page)||!permissionCanVisit(page))return;
   if(term==='__unknown'){toast('请先选择一个学期或全部学期');return}
   try{
     if(!globalThis.localStorage)throw Error('storage unavailable');
@@ -43,16 +67,16 @@ function teachingDefaultTermOptions(page,options){
 studentTermFilterOptions=function(key,rows){const options=teachingPreviousStudentOptions(key,rows);return key==='term'?teachingDefaultTermOptions('students',options):options};
 classManagementOptions=function(key){const options=teachingPreviousClassOptions(key);return key==='term'?teachingDefaultTermOptions('classes',options):options};
 const teachingPreviousStudentFields=studentTermFiltersHTML,teachingPreviousClassFields=classManagementFilterFields;
-function teachingDefaultTermHeading(page,id){return `<div class="term-default-heading"><label for="${id}">学期</label><span id="term-default-${page}" class="term-default-controls">${teachingDefaultTermControls(page)}</span></div>`}
-studentTermFiltersHTML=function(rows){return teachingPreviousStudentFields(rows).replace('<label for="student-filter-term">学期</label>',teachingDefaultTermHeading('students','student-filter-term'))};
-classManagementFilterFields=function(){return teachingPreviousClassFields().replace('<label for="class-management-term">学期</label>',teachingDefaultTermHeading('classes','class-management-term'))};
+function teachingDefaultTermPicker(page){return `<label for="teaching-term-trigger-${page}">学期</label><div id="term-default-${page}" class="teaching-term-picker">${teachingDefaultTermControls(page)}</div>`}
+studentTermFiltersHTML=function(rows){return teachingPreviousStudentFields(rows).replace(/<label for="student-filter-term">学期<\/label><select[\s\S]*?<\/select>/,()=>teachingDefaultTermPicker('students'))};
+classManagementFilterFields=function(){return teachingPreviousClassFields().replace(/<label for="class-management-term">学期<\/label><select[\s\S]*?<\/select>/,()=>teachingDefaultTermPicker('classes'))};
 const teachingPreviousStudentSetFilter=studentTermSetFilter,teachingPreviousClassSetFilter=classManagementSetFilter;
 studentTermSetFilter=function(key,value){teachingPreviousStudentSetFilter(key,value);if(key==='term')teachingDefaultTermRefresh('students')};
 classManagementSetFilter=function(key,value){teachingPreviousClassSetFilter(key,value);if(key==='term')teachingDefaultTermRefresh('classes')};
 let teachingDefaultTermLastView='';
 function teachingDefaultTermEnter(){
   const key=studentTermActor()+'|'+state.page;
-  if(key!==teachingDefaultTermLastView){teachingDefaultTermLastView=key;if(['students','classes'].includes(state.page)&&permissionCanVisit(state.page))teachingDefaultTermApply(state.page)}
+  if(key!==teachingDefaultTermLastView){teachingTermOpenPage='';teachingDefaultTermLastView=key;if(['students','classes'].includes(state.page)&&permissionCanVisit(state.page))teachingDefaultTermApply(state.page)}
 }
 // 菜单直接调用 render，详情返回调用 academicRender；两条入口均应用默认值。
 const teachingDefaultPreviousRender=render,teachingDefaultPreviousAcademicRender=academicRender;

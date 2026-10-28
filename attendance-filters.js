@@ -11,8 +11,6 @@ function attendanceFilters(){
   return attendanceFilterViews.get(actor);
 }
 function attendanceTimeKey(value){return String(value||'').replace(/[–—~～]/g,'-').replace(/\s/g,'')}
-const attendanceLessonSelections=new Map();
-function attendanceSelectionKey(cls){return studentTermActor()+'|'+cls.id}
 function attendanceLessons(cls){
   return classDetailSessions(cls).map((session,position)=>({...session,position,key:String(session.id||`${session.date}|${session.time}|${position}`),label:!Array.isArray(cls.sessions)&&/^第\d+讲$/.test(session.name)?session.name:`第${session.number}讲`,time:attendanceTimeKey(session.time)}));
 }
@@ -21,20 +19,21 @@ function attendanceLessonRecords(cls,lesson){
     (record.sessionId?String(record.sessionId)===lesson.key:record.date===lesson.date&&attendanceTimeKey(record.time)===lesson.time));
 }
 function attendanceLessonEnd(lesson){
+  if(lesson.endsAt&&Number.isFinite(Date.parse(lesson.endsAt)))return Date.parse(lesson.endsAt);
   const end=lesson.time.match(/-(\d{2}:\d{2})$/)?.[1];
   return lesson.date&&end?new Date(lesson.date+'T'+end+':00').getTime():NaN;
 }
 function attendanceDefaultLesson(lessons,now=Date.now()){
   const ended=lessons.filter(s=>Number.isFinite(attendanceLessonEnd(s))&&attendanceLessonEnd(s)<=now);
   if(ended.length)return ended.reduce((latest,s)=>attendanceLessonEnd(s)>attendanceLessonEnd(latest)?s:latest);
-  // 尚无已结束课节时选择最早待上课节；全部未排时间时选择第一节。
-  return lessons.filter(s=>Number.isFinite(attendanceLessonEnd(s))).sort((x,y)=>attendanceLessonEnd(x)-attendanceLessonEnd(y))[0]||lessons[0]||null;
+  return null;
 }
 function attendanceLessonStudents(cls,lesson){
   const records=attendanceLessonRecords(cls,lesson),students=new Map();
-  for(const student of classDetailStudentRows(cls).filter(s=>s.kind==='在班学生'))students.set(student.id,student);
+  const trials=trialLessonRequests(cls.id,lesson.startsAt||lesson.date+'T'+lesson.time.slice(0,5));
+  for(const student of classDetailStudentRows(cls).filter(s=>s.kind==='在班学生'&&(s.classStatus!=='试听'||trials.some(r=>r.studentId===s.id))))students.set(student.id,student);
   for(const record of records){const student=record.studentId?a.students.find(s=>s.id===record.studentId):a.students[record.studentIndex];if(student)students.set(student.id,student)}
-  return [...students.values()].map(student=>({student,record:records.find(r=>r.studentId?r.studentId===student.id:a.students[r.studentIndex]?.id===student.id)}));
+  return [...students.values()].map(student=>({student,trialRequest:student.classStatus==='试听'?trials.find(r=>r.studentId===student.id):undefined,linkedTrial:trials.find(r=>r.studentId===student.id),record:records.find(r=>r.studentId?r.studentId===student.id:a.students[r.studentIndex]?.id===student.id)}));
 }
 function attendanceLessonStatus(cls,lesson){
   const entries=attendanceLessonStudents(cls,lesson),done=entries.filter(e=>e.record?.status==='已考勤').length;
@@ -48,9 +47,9 @@ function attendanceRows(){
     if(courseCategory(course)!=='班课')return [];
     const lessons=attendanceLessons(cls),eligible=lessons.filter(s=>(!f.date||s.date===f.date)&&(!f.time||s.time===f.time));
     if((f.date||f.time)&&!eligible.length)return [];
-    const selected=attendanceLessonSelections.get(attendanceSelectionKey(cls));
-    const lesson=eligible.find(s=>s.key===selected)||attendanceDefaultLesson(eligible);
-    return [{...cls,classIndex:cls.index,lessons:eligible,lesson,date:lesson?.date||'',time:lesson?.time||'',attendanceStatus:lesson?attendanceLessonStatus(cls,lesson):'未排课'}];
+    const completedLesson=attendanceDefaultLesson(lessons);
+    const lesson=attendanceDefaultLesson(eligible)||eligible[0]||null;
+    return [{...cls,classIndex:cls.index,lessons:eligible,lesson,completedLesson,date:lesson?.date||'',time:lesson?.time||'',attendanceStatus:lesson?attendanceLessonStatus(cls,lesson):'未排课'}];
   });
 }
 function attendanceFiltered(){
@@ -91,18 +90,29 @@ function attendanceFilterFields(){
 }
 function attendanceResults(){
   const rows=attendanceFiltered();
-  return aTable(['班级名称','考勤课节','科目','学期','年级','授课老师','开课日期','上课时间','学生人数','考勤状态','操作'],rows.map(row=>`<tr><td>${esc(row.name)}</td><td>${row.lesson?`<select class="select" style="min-width:210px" aria-label="${esc(row.name)}考勤课节" onchange="attendanceSelectLesson(${row.classIndex},this.value)">${row.lessons.map(s=>`<option value="${esc(s.key)}"${row.lesson.key===s.key?' selected':''}>${esc(s.label)} · ${esc(s.date||'待排课')} ${esc(s.time)}</option>`).join('')}</select>`:'暂无课节'}</td><td>${esc(row.subject||'—')}</td><td>${esc(classManagementTermLabel(row.term))}</td><td>${esc(row.grade||'—')}</td><td>${esc(row.lesson?.teacher||row.teacher||'—')}</td><td>${esc(row.date||'—')}</td><td>${esc(row.time||'—')}</td><td>${esc(String(row.students??0))}</td><td>${esc(row.attendanceStatus)}</td><td>${row.lesson?`<a onclick="attendanceOpenLesson(${row.classIndex},${row.lesson.position})">${row.attendanceStatus==='已考勤'?'查看考勤':'考勤'}</a>`:'—'}</td></tr>`))+
+  return aTable(['班级名称','科目','学期','年级','授课老师','开课日期','上课时间','学生人数','已完课节','操作'],rows.map(row=>`<tr><td>${esc(row.name)}</td><td>${esc(row.subject||'—')}</td><td>${esc(classManagementTermLabel(row.term))}</td><td>${esc(row.grade||'—')}</td><td>${esc(row.lesson?.teacher||row.teacher||'—')}</td><td>${esc(row.date||'—')}</td><td>${esc(row.time||'—')}</td><td>${esc(String(row.students??0))}</td><td>${esc(row.completedLesson?.label||'暂无已完课节')}</td><td>${row.lesson?`<a onclick="attendanceOpenClass(${row.classIndex})">考勤</a>`:'暂无课节'}</td></tr>`))+
     (!rows.length?'<div class="empty">暂无符合条件的考勤记录，请调整筛选条件。</div>':'')+`<div class="data-bar">共 ${rows.length} 个班级</div>`;
 }
 function attendanceSelectLesson(classIndex,key){
-  const cls=a.classes[classIndex];if(!cls||!attendanceLessons(cls).some(s=>s.key===key))return;
-  attendanceLessonSelections.set(attendanceSelectionKey(cls),key);$('#attendance-results').innerHTML=attendanceResults();
+  const cls=a.classes[classIndex],draft=a.attendanceLessonDraft;
+  if(a.modal!=='attendanceLesson'||!permissionCanVisit('attendance')||!cls||draft?.classId!==cls.id||draft.actor!==studentTermActor()||!attendanceLessons(cls).some(s=>s.key===key))return;
+  const current=attendanceLessonContext();
+  if(current){
+    const choices=current.entries.map(({student,record},index)=>({id:student.id,value:record?.makeupResolution?record.attendance:$('#attendance-lesson-student-'+index).value}));
+    draft.choices=(draft.choices||[]).filter(choice=>choice.key!==draft.key);draft.choices.push({key:draft.key,students:choices});
+  }
+  draft.key=key;academicRender();
+}
+function attendanceOpenClass(classIndex){
+  if(!permissionCanVisit('attendance'))return;
+  const cls=a.classes[classIndex];if(!cls||!attendanceLessons(cls).length)return;
+  const lesson=attendanceDefaultLesson(attendanceLessons(cls));
+  a.attendanceLessonDraft={classId:cls.id,key:lesson?.key||'',actor:studentTermActor(),choices:[]};a.modal='attendanceLesson';academicRender();
 }
 function attendanceOpenLesson(classIndex,position){
   if(!permissionCanVisit('attendance'))return;
   const cls=a.classes[classIndex],lesson=cls&&attendanceLessons(cls)[position];if(!lesson)return;
-  attendanceLessonSelections.set(attendanceSelectionKey(cls),lesson.key);
-  a.attendanceLessonDraft={classId:cls.id,key:lesson.key,actor:studentTermActor()};a.modal='attendanceLesson';academicRender();
+  a.attendanceLessonDraft={classId:cls.id,key:lesson.key,actor:studentTermActor(),choices:[]};a.modal='attendanceLesson';academicRender();
 }
 function attendanceLessonContext(){
   const draft=a.attendanceLessonDraft;if(!draft||draft.actor!==studentTermActor()||!permissionCanVisit('attendance'))return null;
@@ -111,26 +121,31 @@ function attendanceLessonContext(){
 }
 const attendancePreviousModal=modalPage;
 function attendanceLessonChoiceHTML(record,index){
-  if(record?.makeupResolution)return `<span>${esc(record.attendance)}</span><div class="help">${record.makeupResolution.type==='consume'?'已销课':'已返还课时余额'}</div>`;
+  if(record?.makeupResolution)return `<span>${esc(record.attendance)}</span><div class="help">${record.makeupResolution.type==='consume'?'已销课':'课时已挂起'}</div>`;
   return `<select class="select" id="attendance-lesson-student-${index}"><option value="">请选择出勤情况</option>${['出勤','迟到','早退','请假','旷课','未出勤销课'].map(value=>`<option${record?.attendance===value?' selected':''}>${value}</option>`).join('')}</select>`;
 }
 modalPage=function(){
   if(a.modal!=='attendanceLesson')return attendancePreviousModal();
   const context=attendanceLessonContext(),close='<button class="btn" onclick="a.modal=null;a.attendanceLessonDraft=null;academicRender()">关闭</button>';
-  if(!context)return `<div class="modal-backdrop"><div class="modal"><p>课节已变更，请重新选择。</p>${close}</div></div>`;
-  const {cls,lesson,entries}=context;
-  return `<div class="modal-backdrop"><section class="modal" style="max-height:85vh;overflow:auto" role="dialog" aria-modal="true" aria-labelledby="attendance-lesson-title"><div class="modal-head"><h2 id="attendance-lesson-title">${esc(lesson.label)}考勤</h2>${close}</div><p>${esc(cls.name)} · ${esc(lesson.date||'待排课')} ${esc(lesson.time)}</p>${aTable(['学生ID','学生姓名','考勤状态','出勤情况'],entries.map(({student,record},index)=>`<tr><td>${esc(student.id)}</td><td>${esc(student.name)}</td><td>${esc(record?.status||'未考勤')}</td><td>${attendanceLessonChoiceHTML(record,index)}</td></tr>`))}${entries.length?'':'<div class="empty">该课节暂无可考勤学生</div>'}<div class="modal-actions">${close}${entries.some(entry=>!entry.record?.makeupResolution)?'<button class="btn primary" onclick="attendanceSaveLesson()">保存考勤</button>':''}</div></section></div>`;
+  const draft=a.attendanceLessonDraft,cls=context?.cls||(draft?.actor===studentTermActor()&&permissionCanVisit('attendance')&&a.classes.find(c=>c.id===draft.classId));
+  if(!cls)return `<div class="modal-backdrop"><div class="modal"><p>课节已变更，请重新选择。</p>${close}</div></div>`;
+  const lesson=context?.lesson,entries=context?.entries||[],lessons=attendanceLessons(cls),choices=draft.choices?.find(choice=>choice.key===lesson?.key)?.students||[];
+  const picker=`<select class="select" id="attendance-lesson-picker" aria-label="选择考勤讲次" style="width:auto;max-width:100%" onchange="attendanceSelectLesson(${a.classes.indexOf(cls)},this.value)"><option value="" disabled${lesson?'':' selected'}>请选择第N讲</option>${lessons.map(s=>`<option value="${esc(s.key)}"${lesson?.key===s.key?' selected':''}>${esc(s.label)} · ${esc(s.date||'待排课')} ${esc(s.time)}</option>`).join('')}</select>`;
+  return `<div class="modal-backdrop"><section class="modal" style="max-height:85vh;overflow:auto" role="dialog" aria-modal="true" aria-labelledby="attendance-lesson-title"><div class="modal-head"><div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap"><h2 id="attendance-lesson-title">考勤</h2>${picker}</div>${close}</div><p>${esc(cls.name)}${lesson?' · '+esc(lesson.date||'待排课')+' '+esc(lesson.time):''}</p>${lesson?aTable(['学生ID','学生姓名','考勤状态','出勤情况'],entries.map(({student,record,trialRequest},index)=>{const choice=choices.find(c=>c.id===student.id);return `<tr><td>${esc(student.id)}</td><td>${esc(student.name)}${trialRequest||record?.trialRequestId?'[试听]':''}</td><td>${esc(record?.status||'未考勤')}</td><td>${attendanceLessonChoiceHTML(choice&&!record?.makeupResolution?{...record,attendance:choice.value}:record,index)}</td></tr>`})):''}${entries.length?'':`<div class="empty">${lesson?'该课节暂无可考勤学生':attendanceDefaultLesson(lessons)?'课节已变更，请重新选择。':'暂无已完课节，请选择需要查看的讲次。'}</div>`}<div class="modal-actions">${close}${entries.some(entry=>!entry.record?.makeupResolution)?'<button class="btn primary" onclick="attendanceSaveLesson()">保存考勤</button>':''}</div></section></div>`;
 };
 function attendanceSaveLesson(){
   const context=attendanceLessonContext();if(a.modal!=='attendanceLesson'||!context)return;
   const {cls,lesson,entries}=context,values=entries.map((entry,index)=>entry.record?.makeupResolution?entry.record.attendance:$('#attendance-lesson-student-'+index).value);
   if(!entries.length)return;
+  if(entries.some((entry,index)=>(entry.trialRequest||entry.record?.trialRequestId)&&values[index]==='未出勤销课')){toast('试听课不扣正价课时，请登记实际出勤情况');return}
   if(!Number.isFinite(attendanceLessonEnd(lesson))){toast('请先完成本课节的日期和时间排课');return}
   if(values.some((value,index)=>!entries[index].record?.makeupResolution&&!['出勤','迟到','早退','请假','旷课','未出勤销课'].includes(value))){toast('请填写每位学生的出勤情况');return}
   // 整批校验后再写入，避免某位学生校验失败时已产生部分销课记录。
-  const pending=entries.map(({student,record},index)=>({student,index,record:record||{classId:cls.id,classIndex:a.classes.indexOf(cls),studentId:student.id,studentIndex:a.students.findIndex(s=>s.id===student.id),sessionId:lesson.key,session:lesson.label,date:lesson.date,time:lesson.time.replace('-','–')},isNew:!record}));
+  const pending=entries.map(({student,record,trialRequest,linkedTrial},index)=>({student,index,trialRequest,linkedTrial,record:record||{classId:cls.id,classIndex:a.classes.indexOf(cls),studentId:student.id,studentIndex:a.students.findIndex(s=>s.id===student.id),sessionId:lesson.key,session:lesson.label,date:lesson.date,time:lesson.time.replace('-','–')},isNew:!record}));
   if(pending.some(({student,record,index})=>!record.makeupResolution&&values[index]==='未出勤销课'&&makeupExistingResolution({student,record,cls}))){toast('本课节已有销课或课时返还记录，请刷新后查看');return}
-  pending.forEach(({student,record,index,isNew})=>{
+  pending.forEach(({student,record,index,isNew,trialRequest,linkedTrial})=>{
+    if(trialRequest){record.trialRequestId=trialRequest.id;record.consumptionCents=0}
+    if(linkedTrial)Object.assign(linkedTrial,{attendance:['出勤','迟到','早退'].includes(values[index])?'已试听':'未出勤',attendanceAt:new Date().toISOString(),attendanceOperator:studentExamOperator()});
     if(record?.makeupResolution)return;
     if(isNew)a.attendance.push(record);
     if(values[index]==='未出勤销课')makeupCommitResolution({student,record,cls},'consume','attendance');
@@ -154,7 +169,6 @@ function attendanceEnter(){
   const key=studentTermActor()+'|'+state.page;
   if(key===attendanceLastView)return;attendanceLastView=key;
   if(state.page==='attendance'&&permissionCanVisit('attendance')){
-    for(const cls of a.classes)attendanceLessonSelections.delete(attendanceSelectionKey(cls));
     const campus=attendanceDefaultRead();if(campus!==null)Object.assign(attendanceFilters(),attendanceEmptyFilters(),{campus});
   }
 }
