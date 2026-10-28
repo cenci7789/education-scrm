@@ -48,3 +48,13 @@ function selectModalClass(){let chosen=document.querySelector('input[name="modal
 function saveAttendance(i){let v=$('#attendance-choice').value;if(!v){toast('请选择出勤情况');return}a.attendance[i].attendance=v;a.attendance[i].status='已考勤';a.modal=null;academicRender();toast('考勤已保存')}
 function saveNewStudent(){let name=$('#new-student-name').value.trim(),phone=$('#new-student-phone').value.trim();if(!name||!phone){toast('请填写学生姓名和联系电话');return}a.students.unshift({id:String(Date.now()).slice(-8),name,phone,campus:$('#new-student-campus').value||'城中校区',status:'潜在',follow:'待跟进',className:'—'});a.modal=null;academicRender();toast('学生已录入')}
 render();
+
+// Shared student summary for academic business forms.
+function flowStudentSummary(student){
+  const select="a.modal='selectStudent';academicRender()";
+  if(!student)return `<div class="toolbar"><button class="btn primary" onclick="${select}">选择学生</button></div>`;
+  const enrollments=typeof studentTermEnrollments==='function'?studentTermEnrollments().filter(row=>row.studentId===student.id&&!['已退班','已退费','已取消','已转班','已结课'].includes(row.status)):[];
+  const count=new Set(enrollments.map(row=>row.classId||row.className).filter(Boolean)).size;
+  const campus=student.campus||[...new Set(enrollments.map(row=>row.campus).filter(Boolean))].join('、')||'未设置校区';
+  return `<div class="flow-student-summary"><div class="flow-student-main"><div class="flow-student-line"><strong>${esc(student.name)}</strong><span>${esc(student.phone||'未填写联系电话')}</span><span>${count} 个已报名课程 / 班级</span></div><div class="flow-student-campus">${esc(campus)}</div></div><button class="btn small" onclick="${select}">重新选择</button></div>`;
+}

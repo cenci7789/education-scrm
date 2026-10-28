@@ -57,9 +57,9 @@ for(const [key,value] of Object.entries({name:'修改姓名',phone:'13912345678'
 run('studentProfileSaveBasic()');assert.equal(run('a.students[0].name'),'修改姓名');assert.equal(run('leadState.leads[0].name'),'修改姓名');assert.equal(run('leadState.leads[1].name'),'档案学生');assert.equal(run('a.orders[0].amount'),'¥900.00');
 run("studentTermOpenStudent('profile-b')");assert(!page().includes('课堂反馈与家长沟通'));run("studentProfileTab('学习档案')");assert(!page().includes('期末试卷'));
 run("nav('students')");assert(!page().includes('>详情</button>'));for(const label of ['沟通','学生档案'])assert(page().includes('>'+label+'</button>'));
-run("studentTermOpenStudent('profile-a','学生档案')");assert.equal(run('studentProfileState.tab'),'在读课程');assert(page().includes('编辑基本信息'));assert.equal(run('studentProfileState.basicExpanded'),false);
+run("studentTermOpenStudent('profile-a','学生档案')");assert.equal(run('studentProfileState.tab'),'学习档案');assert(page().includes('编辑基本信息'));
 for(const label of ['学习档案','购课记录'])assert(page().includes('>'+label+'</button>'));
-assert(!page().includes('>基本信息</button>'));assert(page().includes('student-profile-basic'));assert(page().indexOf('student-profile-basic')<page().indexOf('aria-label="学生档案"'));
+assert(!page().includes('>基本信息</button>'));assert(!page().includes('<details'));assert(page().indexOf('编辑基本信息')<page().indexOf('aria-label="学生档案"'));assert(!page().includes('>在读课程</button>'));
 run("studentProfileTab('学习档案')");assert.equal(run('studentProfileState.tab'),'学习档案');assert(page().includes('期末试卷'));assert(page().includes('studentProfileTab('));assert(!page().includes('历次报名课程'));assert(!page().includes('教务沟通操作'));
 run("nav('students');studentTermOpenStudent('profile-b','购课记录')");assert.equal(run('studentProfileState.tab'),'购课信息');assert(page().includes('购课记录'));assert(page().includes('暂无正式报名课程'));assert(!page().includes('新增学习档案'));assert(!page().includes('教务沟通操作'));assert(node('#crumb').textContent.endsWith('学生档案'));
 run("nav('students');studentTermOpenStudent('profile-a','购课记录')");assert(page().includes('往期数学班'));assert(!page().includes('期末试卷'));

@@ -55,7 +55,7 @@ assert.equal(run('a.students.length'),1);
 assert.equal(run('a.orders[0].items[0].renewalFrom.classId'),'OLD');
 assert.equal(run(`studentRenewalStatus('LIFE','OLD')`),'已报名，待补费');
 assert.equal(run('a.orders[0].items[0].academicTeacher'),'教务乙');
-run(`businessRestore(JSON.parse(JSON.stringify(businessSnapshot())));state.page='supplement';a.selectedStudent=0;supplementSelectClass('NEW');supplementReceiptField(0,'channel','现金');supplementReceiptField(0,'amount','1000');supplementSubmit()`);
+run(`businessRestore(JSON.parse(JSON.stringify(businessSnapshot())));state.page='supplement';a.selectedStudent=0;supplementSelectClass('NEW');supplementReceiptField(0,'channel','现金');supplementReceiptField(0,'amount','1000');supplementDraft().receipts[0].proofs=[{fileName:'补费回单.pdf',url:'blob:supplement-fixture'}];supplementSubmit()`);
 assert.equal(run(`studentRenewalStatus('LIFE','OLD')`),'续报成功');
 assert.equal(run('a.renewalPeriods.length'),1);
 run(`a.orders[0].items[0].enrollmentStatus='已退费'`);

@@ -1,5 +1,5 @@
 // 报名学生信息草稿跨步骤保存，确认报名后才写入学生档案。
-function enrollmentActive(){return ['enroll','quickEnroll'].includes(state.page)}
+function enrollmentActive(){return ['enroll','quickEnroll','studentRenewal'].includes(state.page)}
 // 进入报名只建立草稿；学生身份在试听、报名和后续服务之间复用。
 function enrollmentLeadStudents(lead){
   if(!lead)return [];

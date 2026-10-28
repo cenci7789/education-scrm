@@ -15,6 +15,18 @@ permissionStaffForm=function(){
  return auditStaffForm().replace(/<select[^>]*id="staff-campus"[\s\S]*?<\/select>/,()=>`<select class="select" id="staff-campus" aria-label="所属校区" multiple size="${Math.min(5,Math.max(2,options.length+1))}" style="height:auto"><option value="" ${selected.length?'':'selected'}>不选择校区（归属分校）</option>${options.map(name=>`<option value="${esc(name)}" ${selected.includes(name)?'selected':''}>${esc(name)}</option>`).join('')}</select>`);
 };
 const auditSaveStaff=permissionSaveStaff;
+function auditRenameTeachingAssignments(old,updated){
+ const matches=row=>{
+   if(row.teacherId)return [old.id,old.staffId].filter(Boolean).some(id=>String(id)===String(row.teacherId));
+   if(row.teacherAccount)return Boolean(old.account&&row.teacherAccount===old.account);
+   return row.teacher===old.name;
+ };
+ for(const cls of a.classes){
+   if(matches(cls))cls.teacher=updated.name;
+   for(const lesson of cls.sessions||[])if(matches(lesson))lesson.teacher=updated.name;
+ }
+ for(const request of trialState.requests)if(request.status==='已排班'&&matches(request))request.teacher=updated.name;
+}
 permissionSaveStaff=function(){
  if(permissionState.identity!=='admin')return;
  const old=state.staffEdit===null?null:state.staff[state.staffEdit],phone=$('#staff-phone').value.trim(),campuses=staffSelectedCampuses();
@@ -22,7 +34,7 @@ permissionSaveStaff=function(){
  if(state.staff.some(s=>s!==old&&s.phone===phone)){toast('该手机号已属于其他员工');return}
  if(campuses.some(name=>!state.campuses.some(c=>c.active&&c.name===name)&&!staffCampusNames(old).includes(name))){toast('请选择已启用校区，或留空归属分校');return}
  const before=old?.name;const result=auditSaveStaff();
- if(state.mode==='list'&&old){const updated=state.staff.find(s=>s.classTeacherId===old.classTeacherId&&s.phone===phone)||state.staff[state.staffEdit];if(updated&&before!==updated.name&&state.staff.filter(s=>s.name===before).length===0){for(const c of a.classes)if(c.teacher===before)c.teacher=updated.name;for(const lead of leadState.leads){if(lead.assignees?.some(p=>p.account&&(p.account===old.account||p.account===old.phone))){lead.assignees.forEach(p=>{if(p.account&&(p.account===old.account||p.account===old.phone))p.name=updated.name});lead.owner=lead.assignees.map(p=>p.name).join('、')}}}}
+ if(state.mode==='list'&&old){const updated=state.staff.find(s=>s.classTeacherId===old.classTeacherId&&s.phone===phone)||state.staff[state.staffEdit];if(updated&&before!==updated.name&&state.staff.filter(s=>s.name===before).length===0){auditRenameTeachingAssignments(old,updated);for(const lead of leadState.leads){if(lead.assignees?.some(p=>p.account&&(p.account===old.account||p.account===old.phone))){lead.assignees.forEach(p=>{if(p.account&&(p.account===old.account||p.account===old.phone))p.name=updated.name});lead.owner=lead.assignees.map(p=>p.name).join('、')}}}}
  return result;
 };
 const auditCampusForm=campusForm;

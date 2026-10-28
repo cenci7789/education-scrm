@@ -15,7 +15,7 @@ const {chromium}=require(path.join(process.env.USERPROFILE,'.cache/codex-runtime
  assert(await page.locator('#lead-record-note').isVisible());
  await page.locator('#lead-record-note').fill('家长明确希望参加试听，保留沟通说明。');
  await page.locator('#communication-result').selectOption('有效沟通');await page.locator('#communication-intent').selectOption('高意向');await page.locator('#communication-reason').fill('家长主动确认试听');
-  assert.equal(await page.locator('#communication-next-action').count(),0);assert.equal(await page.locator('.lead-completion-actions [data-completion-action]').count(),6);
+  assert.equal(await page.locator('#communication-next-action').count(),0);assert.equal(await page.locator('.lead-completion-actions [data-completion-action]').count(),5);assert.equal(await page.locator('[data-completion-action="colleague"]').count(),0);
   await page.locator('[data-completion-action="follow"]').click();assert(await page.locator('#follow-time').isVisible());await page.locator('#communication-next-time').getByRole('button',{name:'取消',exact:true}).click();assert.equal(await count(),0);assert.equal(await page.locator('#lead-record-note').inputValue(),'家长明确希望参加试听，保留沟通说明。');
   await page.locator('[data-completion-action="follow"]').click();await page.locator('#lead-record-save').click();assert.equal(await count(),0);
  await page.locator('#follow-time').fill('2026-10-24T12:00');await page.locator('#lead-record-save').click();assert.equal(await count(),0);
@@ -23,11 +23,11 @@ const {chromium}=require(path.join(process.env.USERPROFILE,'.cache/codex-runtime
  assert.equal(await page.evaluate(()=>leadState.leads[0].next),'2026-10-26 12:00');assert.equal(await page.evaluate(()=>leadState.leads[0].intent),'高意向');
  assert.match(await page.locator('.lead-history-section').innerText(),/保留沟通说明/);
  // Each required next action routes into the existing business flow only after saving.
- for(const action of ['trial','enroll','colleague','publicPool','cold']){
+ for(const action of ['trial','enroll','publicPool','cold']){
   await page.evaluate(()=>{leadDetail(0,'myLeads');leadOpenUpload('其他',true)});
   const before=await count();await page.locator('[data-completion-action="'+action+'"]').click();assert.equal(await count(),before);assert.equal(await page.evaluate(()=>state.page),'leadDetail');
   await page.locator('#lead-record-note').fill('安排下一步：'+action);await page.locator('#communication-result').selectOption('未接通');
-  assert(!(await page.locator('#follow-time').isVisible()));await page.locator('[data-completion-action="'+action+'"]').click();assert.equal(await count(),before+(action==='enroll'?2:1));
+  assert(!(await page.locator('#follow-time').isVisible()));await page.locator('[data-completion-action="'+action+'"]').click();assert.equal(await count(),before+1);
   assert.equal(await page.evaluate(()=>leadState.leads[0].history.filter(x=>x[3]?.communication).at(-1)[3].communication.nextAction),action);
   const route=await page.evaluate(()=>({page:state.page,modal:leadState.modal}));
   if(action==='trial')assert.equal(route.page,'quickTrial');else if(action==='enroll')assert(['quickEnroll','enroll'].includes(route.page));else assert.equal(route.modal,action);
@@ -52,5 +52,5 @@ const {chromium}=require(path.join(process.env.USERPROFILE,'.cache/codex-runtime
  // Persisted communication, selected next action and notes survive reload.
  await page.waitForTimeout(4000);await page.reload();await page.waitForFunction(()=>businessStorage.ready&&!businessStorage.busy);
  assert.equal(await count(),beforeUpload+1);assert.equal(await page.evaluate(()=>leadState.leads[0].history.at(-1)[3].communication.nextAction),'follow');
- assert.deepEqual(errors,[]);console.log('PASS browser: fixed actions, three channels, required next step/time, all six routes, retained notes, cancellation, AI manual/stale response guards, upload blocking/append, reload persistence.');
+ assert.deepEqual(errors,[]);console.log('PASS browser: fixed actions, three channels, required next step/time, all five current routes, retained notes, cancellation, AI manual/stale response guards, upload blocking/append, reload persistence.');
 }finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

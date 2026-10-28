@@ -1,5 +1,5 @@
 // 用户已明确的教学、财务中心导航。待业务参考补充后再细化页面。
-const structurePages={learningActive:'在读学生',learningHistory:'历史学生',learningData:'课表',financeRefunds:'退转记录',financeArrears:'欠费记录',financeConsumption:'课消记录',financeReceipts:'收款设置'};
+const structurePages={learningClasses:'班级',learningClassDetail:'班级详情',learningActive:'学生',learningStudentCourses:'学生 / 在读课程',learningData:'课表',financeRefunds:'退转记录',financeArrears:'欠费记录',financeConsumption:'课消记录',financeReceipts:'收款设置'};
 const structurePreviousRender=render,structurePreviousAcademicRender=academicRender;
 render=function(){if(structurePages[state.page])structureRender();else structurePreviousRender()};
 academicRender=function(){
@@ -12,11 +12,11 @@ academicRender=function(){
 };
 function structureRender(){
   const page=state.page,learning=page.startsWith('learning');
-  document.querySelectorAll('.menu-item').forEach(e=>e.classList.toggle('active',e.dataset.page===page));
+  document.querySelectorAll('.menu-item').forEach(e=>e.classList.toggle('active',e.dataset.page===(page==='learningClassDetail'?'learningClasses':page==='learningStudentCourses'?'learningActive':page)));
   document.querySelectorAll('[data-nav-toggle]').forEach(e=>e.classList.remove('active-parent'));
   document.querySelector(`[data-nav-toggle="${learning?'learning':'finance'}"]`).classList.add('active-parent');
   $('#crumb').textContent=(learning?'教学':'财务中心')+' / '+structurePages[page];
-  $('#view').innerHTML=({learningActive:()=>learningStudentsPage('在读'),learningHistory:()=>learningStudentsPage('历史'),learningData:learningDataPage,financeRefunds:financeRefundsPage,financeArrears:financeArrearsPage,financeConsumption:financeConsumptionPage,financeReceipts:financeReceiptsPage})[page]();
+  $('#view').innerHTML=({learningClasses:learningClassesPage,learningClassDetail:learningClassDetailPage,learningStudentCourses:learningStudentCoursesPage,learningActive:()=>learningStudentsPage('在读'),learningData:learningDataPage,financeRefunds:financeRefundsPage,financeArrears:financeArrearsPage,financeConsumption:financeConsumptionPage,financeReceipts:financeReceiptsPage})[page]();
 }
 function learningStudentsPage(status){
   const list=a.students.map((s,index)=>({...s,index})).filter(s=>s.status===status);

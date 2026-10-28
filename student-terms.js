@@ -35,9 +35,11 @@ function studentTermEnrollments(now=Date.now()){
     const add=record=>{
       const cls=a.classes.find(c=>record.classId?c.id===record.classId:c.name===record.className);
       const term=studentClassTerm(cls,record),className=cls?.name||record.className||record.course||'班级待确认';
+      const status=studentTermEnrollmentStatus(cls,record,now);
+      const historical=['已结课','已退费','已退班','已转班','已取消'].includes(status);
       const key=(record.classId||className)+'|'+term;
       records.set(key,{...studentTermClassFields(cls,record),startSession:record.startSession??records.get(key)?.startSession,course:record.course||cls?.course||'',classType:record.classType||enrollmentClassInfo(cls||{}).classType||'',room:cls?.room||record.room||'',personKey:'student:'+student.id,studentId:student.id,studentIndex:index,name:student.name,phone:student.phone,grade:record.grade||enrollmentClassInfo(cls||{}).grade||student.grade||'',
-        term,classId:cls?.id||record.classId,className,campus:record.campus||cls?.campus||student.campus||'',status:studentTermEnrollmentStatus(cls,record,now),kind:'enrollment'});
+        term,classId:cls?.id||record.classId,className,campus:(historical?record.campus||cls?.campus:cls?.campus||record.campus)||student.campus||'',status,kind:'enrollment'});
     };
     // Orders support older records; the student's current enrollment record takes precedence.
     for(const order of a.orders.filter(o=>o.studentId===student.id&&!['已取消','已关闭','交易关闭'].includes(o.status)).slice().reverse())for(const item of order.items||[])add(item);
@@ -116,10 +118,10 @@ function studentTermFiltersHTML(rows){
 }
 
 function studentTermOpenStudent(id,section='沟通记录'){
-  const sections={'沟通':'沟通记录','沟通记录':'沟通记录','学生档案':'在读课程','在读课程':'在读课程','基本信息':'基本信息','学习档案':'学习档案','购课记录':'购课信息'};
+  const sections={'沟通':'沟通记录','沟通记录':'沟通记录','学生档案':'学习档案','在读课程':'在读课程','基本信息':'基本信息','学习档案':'学习档案','购课记录':'购课信息'};
   const tab=sections[section],index=a.students.findIndex(s=>s.id===id);
   if(!tab||index<0||!permissionCanVisit('studentDetail'))return;
-  studentProfileState.requestedCommunicationType=state.page==='students'&&tab==='沟通记录'?'教务沟通':null;
+  studentProfileState.requestedCommunicationType=tab==='沟通记录'?(state.page==='learningActive'?'教师沟通':state.page==='students'?'教务沟通':null):null;
   a.selectedStudent=index;studentProfileState.tab=tab;studentProfileState.requestedSection=tab;studentProfileState.communicationType='全部';studentProfileState.editing=false;studentProfileState.basicExpanded=false;nav('studentDetail');
 }
 function studentTermOpenClass(id){const index=a.classes.findIndex(c=>c.id===id);if(index<0||!permissionCanVisit('classDetail'))return;classOpenDetail(index)}
@@ -132,14 +134,14 @@ function studentTermTrialModal(){
 function studentTermTable(rows,trial=false){
   const groups=new Map();for(const r of rows){if(!groups.has(r.personKey))groups.set(r.personKey,[]);groups.get(r.personKey).push(r)}
   const arg=value=>`decodeURIComponent('${encodeURIComponent(String(value)).replace(/'/g,'%27')}')`;
-  return aTable(['学生ID','学生姓名','联系电话','班级 / 学期',...(trial?['预约课节 / 时间']:[]),'校区','授课老师','教务老师',trial?'试听状态':'本班状态','操作'],[...groups.values()].flatMap(group=>group.map((r,i)=>`<tr>${i?'':`<td rowspan="${group.length}">${esc(r.studentId||'待建档')}</td><td rowspan="${group.length}"><strong>${esc(r.name)}</strong>${r.grade?`<div class="help">${esc(r.grade)}</div>`:''}</td><td rowspan="${group.length}">${esc(r.phone||'—')}</td>`}<td>${r.classId&&a.classes.some(c=>c.id===r.classId)&&permissionCanVisit('classDetail')?`<a onclick="studentTermOpenClass(${arg(r.classId)})">${esc(r.className)}</a>`:esc(r.className)}<div class="help">${studentTermLabel(r.term)}</div></td>${trial?`<td>${esc(r.session||'待确认课节')}<div class="help">${esc(r.time||'待确认时间')}</div></td>`:''}<td>${esc(r.campus||'—')}</td><td>${esc(r.teacher||'—')}</td><td>${esc(r.academicTeacher||'—')}</td><td><span class="badge ${['已结课','已退费','已取消','已转班','已退班'].includes(r.status)?'off':''}">${esc(r.status)}</span></td><td><div class="actions">${r.studentIndex>=0?`<button class="btn small" onclick="studentTermOpenStudent(${arg(r.studentId)},'沟通')">沟通</button><button class="btn small" onclick="studentTermOpenStudent(${arg(r.studentId)},'学习档案')">学习档案</button><button class="btn small" onclick="studentTermOpenStudent(${arg(r.studentId)},'购课记录')">购课记录</button>`:''}${r.requestId!==undefined?`<button class="btn small" onclick="studentTermInspectTrial(${Number(r.requestId)})">预约详情</button>`:''}</div></td></tr>`)))+(!rows.length?'<div class="empty">暂无符合条件的学生，请调整筛选条件。</div>':'')+`<div class="data-bar">共 ${groups.size} 位学生 · ${rows.length} 条${trial?'试听':'班级'}记录</div>`;
+  return aTable(['学生ID','学生姓名','联系电话','班级 / 学期',...(trial?['预约课节 / 时间']:[]),'校区','授课老师','教务老师',trial?'试听状态':'本班状态','操作'],[...groups.values()].flatMap(group=>group.map((r,i)=>`<tr>${i?'':`<td rowspan="${group.length}">${esc(r.studentId||'待建档')}</td><td rowspan="${group.length}"><strong>${esc(r.name)}</strong>${r.grade?`<div class="help">${esc(r.grade)}</div>`:''}</td><td rowspan="${group.length}">${esc(r.phone||'—')}</td>`}<td>${r.classId&&a.classes.some(c=>c.id===r.classId)&&permissionCanVisit('classDetail')?`<a onclick="studentTermOpenClass(${arg(r.classId)})">${esc(r.className)}</a>`:esc(r.className)}<div class="help">${studentTermLabel(r.term)}</div></td>${trial?`<td>${esc(r.session||'待确认课节')}<div class="help">${esc(r.time||'待确认时间')}</div></td>`:''}<td>${esc(r.campus||'—')}</td><td>${esc(r.teacher||'—')}</td><td>${esc(r.academicTeacher||'—')}</td><td><span class="badge ${['已结课','已退费','已取消','已转班','已退班'].includes(r.status)?'off':''}">${esc(r.status)}</span></td><td><div class="actions">${r.studentIndex>=0?`<button class="btn small" onclick="studentTermOpenStudent(${arg(r.studentId)},'沟通')">沟通</button><button class="btn small" onclick="studentTermOpenStudent(${arg(r.studentId)},'课程')">课程</button><button class="btn small" onclick="studentTermOpenStudent(${arg(r.studentId)},'学生档案')">学生档案</button>${typeof studentRenewalButton==='function'?studentRenewalButton(r.studentId,trial?'':r.classId):''}`:''}${r.requestId!==undefined?`<button class="btn small" onclick="studentTermInspectTrial(${Number(r.requestId)})">预约详情</button>`:''}</div></td></tr>`)))+(!rows.length?'<div class="empty">暂无符合条件的学生，请调整筛选条件。</div>':'')+`<div class="data-bar">共 ${groups.size} 位学生 · ${rows.length} 条${trial?'试听':'班级'}记录</div>`;
 }
 function studentTermArg(value){return `decodeURIComponent('${encodeURIComponent(String(value)).replace(/'/g,'%27')}')`}
 function studentTermPeopleTable(rows){
   const people=new Map();for(const row of rows)if(!people.has(row.personKey))people.set(row.personKey,row);
   return aTable(['学生ID','学生姓名','联系电话','操作'],[...people.values()].map(r=>{
     const student=a.students.find(s=>s.id===r.studentId),disabled=student?'':'disabled title="此历史预约尚未关联学生档案"';
-    return `<tr><td>${esc(r.studentId||'待建档')}</td><td><strong>${esc(student?.name||r.name)}</strong>${student?.grade?`<div class="help">${esc(student.grade)}</div>`:''}</td><td>${esc(student?.phone||r.phone||'—')}</td><td><div class="actions"><button class="btn small" ${disabled} onclick="studentTermOpenStudent(${studentTermArg(r.studentId)},'沟通')">沟通</button><button class="btn small" ${disabled} onclick="studentTermOpenStudent(${studentTermArg(r.studentId)},'学生档案')">学生档案</button></div></td></tr>`;
+    return `<tr><td>${esc(r.studentId||'待建档')}</td><td><strong>${esc(student?.name||r.name)}</strong>${student?.grade?`<div class="help">${esc(student.grade)}</div>`:''}</td><td>${esc(student?.phone||r.phone||'—')}</td><td><div class="actions"><button class="btn small" ${disabled} onclick="studentTermOpenStudent(${studentTermArg(r.studentId)},'沟通')">沟通</button><button class="btn small" ${disabled} onclick="studentTermOpenCourses(${studentTermArg(r.personKey)})">课程</button><button class="btn small" ${disabled} onclick="studentTermOpenStudent(${studentTermArg(r.studentId)},'学生档案')">学生档案</button>${typeof studentRenewalButton==='function'?studentRenewalButton(r.studentId):''}</div></td></tr>`;
   }))+(!people.size?'<div class="empty">暂无符合条件的学生，请调整筛选条件。</div>':'')+`<div class="data-bar">共 ${people.size} 位学生</div>`;
 }
 let studentTermCourseSelection=null;

@@ -30,16 +30,16 @@ function enrollmentCancelClasses(){a.enrollment.classPicker=null;academicRender(
 function enrollmentFilteredClasses(){
   const filters=a.enrollment.classPicker.filters;
   return a.classes.map(enrollmentClassInfo).filter(c=>
-    ['grade','subject','classType','campus','term','teacher','format'].every(key=>!filters[key]||(key==='grade'?enrollmentGradeKey(c[key])===enrollmentGradeKey(filters[key]):c[key]===filters[key]))&&
+    ['grade','subject','classType','campus','term','teacher','format'].every(key=>!filters[key]||(state.page==='studentRenewal'&&key==='term'?studentClassTerm(c)===filters[key]:key==='grade'?(state.page==='studentRenewal'?leadGradeKey(c[key])===leadGradeKey(filters[key]):enrollmentGradeKey(c[key])===enrollmentGradeKey(filters[key])):c[key]===filters[key]))&&
     (!filters.time||enrollmentTimeBand(c.time)===filters.time)&&
     (!filters.search||c.name.toLowerCase().includes(filters.search.trim().toLowerCase())));
 }
 function enrollmentClassFilters(){
   const filters=a.enrollment.classPicker.filters,classes=a.classes.map(enrollmentClassInfo);
   return [['grade','年级'],['subject','科目'],['classType','班型'],['campus','校区'],['term','学期'],['teacher','老师'],['time','时间'],['format','授课形式']].map(([key,label])=>{
-    const options=key==='time'?['上午','下午','晚上']:key==='format'?['面授','直播']:[...new Set([...(key==='grade'?[a.enrollment.data.grade]:[]),...classes.map(c=>c[key])].filter(Boolean))];
+    const options=key==='time'?['上午','下午','晚上']:[...new Set([filters[key],...(key==='grade'?[a.enrollment.data.grade]:[]),...(key==='format'?['面授','直播']:[]),...classes.map(c=>state.page==='studentRenewal'&&key==='term'?studentClassTerm(c):c[key])].filter(Boolean))];
     const names={上午:'上午 6:00–12:00',下午:'下午 12:00–18:00',晚上:'晚上 18:00–22:00'};
-    return `<div class="field"><label for="class-filter-${key}">${label}</label><select class="select" id="class-filter-${key}" onchange="enrollmentSetClassFilter('${key}',this.value)"><option value="">全部${label}</option>${options.map(value=>`<option value="${esc(value)}" ${filters[key]===value?'selected':''}>${esc(key==='time'?names[value]:value)}</option>`).join('')}</select></div>`;
+    return `<div class="field"><label for="class-filter-${key}">${label}</label><select class="select" id="class-filter-${key}" onchange="enrollmentSetClassFilter('${key}',this.value)"><option value="">全部${label}</option>${options.map(value=>`<option value="${esc(value)}" ${filters[key]===value?'selected':''}>${esc(key==='time'?names[value]:state.page==='studentRenewal'&&key==='term'?studentTermLabel(value):value)}</option>`).join('')}</select></div>`;
   }).join('')+`<div class="field enrollment-class-search"><label for="class-filter-search">搜索班级名称</label><input class="input" id="class-filter-search" placeholder="请输入班级名称" value="${esc(filters.search||'')}" oninput="enrollmentSetClassFilter('search',this.value)"></div>`;
 }
 function enrollmentSetClassFilter(key,value){
@@ -148,5 +148,6 @@ function enrollmentCompleteOrder(student,payment){
   const lead=leadState.leads.find(l=>l.leadId===leadId);
   if(lead){lead.studentId=student.id;lead.stage='已报名';lead.status='mine';lead.history.push(leadHistoryEntry('报名完成','已报名'+items.map(item=>item.className).join('、')+'。'))}
   enrollmentDisposeProofs(payment.receipts.flatMap(receipt=>(receipt.proofs||[]).map(proof=>proof.url)));
-  a.enrollingLeadId=null;a.enrollStep=1;a.selectedClass=null;nav('orders');toast('报名订单已生成（原型演示）');
+  const returnPage=state.page==='studentRenewal'?studentRenewalReturnPage():'orders';
+  a.enrollingLeadId=null;a.enrollStep=1;a.selectedClass=null;nav(returnPage);toast('报名订单已生成（原型演示）');
 }

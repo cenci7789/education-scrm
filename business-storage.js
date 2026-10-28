@@ -10,6 +10,7 @@ function businessRestore(snapshot){
  if(!Array.isArray(snapshot.academic.renewalDiscounts))a.renewalDiscounts=[];
  leadState.leads=snapshot.leads;studentCommunicationSummaries.clear();for(const [key,value] of snapshot.communicationSummaries||[])studentCommunicationSummaries.set(key,value);Object.assign(trialState,snapshot.trials);Object.assign(permissionState,snapshot.permissions);
  if(typeof leadEnsureCampusAdminRole==='function')leadEnsureCampusAdminRole();
+ if(typeof learningUpgradePermissions==='function')learningUpgradePermissions();
  permissionState.selected=permissionState.roles.some(r=>r.id===permissionState.selected)?permissionState.selected:permissionState.roles[0]?.id;
  permissionState.working=new Set(permissionRole(permissionState.selected)?.grants||[]);
  if(snapshot.mall){mallState.shelved=snapshot.mall.shelved||[];mallState.hiddenShelved=snapshot.mall.hiddenShelved||[];mallState.activities=snapshot.mall.activities||{};mallShelfState.offered=snapshot.mall.offered||{}}

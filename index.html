@@ -56,8 +56,8 @@
     </div>
     <button class="nav-toggle nav-level-1" type="button" data-nav-toggle="learning" aria-expanded="true" aria-controls="nav-learning">教学 <span class="nav-chevron">⌄</span></button>
     <div class="nav-children" id="nav-learning">
-      <button class="menu-item nav-level-2" data-page="learningActive">在读学生</button>
-      <button class="menu-item nav-level-2" data-page="learningHistory">历史学生</button>
+      <button class="menu-item nav-level-2" data-page="learningClasses">班级</button>
+      <button class="menu-item nav-level-2" data-page="learningActive">学生</button>
       <button class="menu-item nav-level-2" data-page="learningData">课表</button>
     </div>
     <button class="nav-toggle nav-level-1" type="button" data-nav-toggle="mall" aria-expanded="true" aria-controls="nav-mall">商城工具 <span class="nav-chevron">⌄</span></button>
@@ -274,6 +274,7 @@ document.querySelectorAll('.menu-item').forEach(e=>e.addEventListener('click',()
 <script src="lead-campus-access.js"></script>
 <script src="absence-management.js"></script>
 <script src="clean-start.js"></script>
+<script src="student-renewal.js"></script>
 <script src="business-storage.js"></script>
 <style>
 .class-management-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 16px}.class-management-filters .field{min-width:0}

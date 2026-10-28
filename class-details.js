@@ -28,7 +28,15 @@ function classOpenDetail(index){
   const cls=a.classes[index];if(!cls)return;
   a.classDetailId=cls.id;a.selectedClass=index;a.classDetailTab='课节';a.classStudentTab='在班学生';a.classStudentSearch='';a.classDetailAttendance=null;a.modal=null;nav('classDetail');
 }
-function classDetailEdit(){const cls=classDetailCurrent();if(!cls)return;a.selectedClass=a.classes.indexOf(cls);nav('classForm')}
+function classDetailEdit(){const cls=classDetailCurrent();if(!cls||state.page==='learningClassDetail'||!permissionCanVisit('classForm'))return;a.selectedClass=a.classes.indexOf(cls);nav('classForm')}
+function classDetailCanViewAttendance(cls=classDetailCurrent()){
+  if(state.page==='learningClassDetail')return Boolean(cls&&cls.id===a.classDetailId&&learningClassDetailAllowed());
+  return permissionCanVisit('attendance');
+}
+function classDetailCanViewStudent(student,cls){
+  if(state.page==='learningClassDetail')return Boolean(cls?.id===a.classDetailId&&learningClassDetailAllowed()&&learningOwnStudent(student.id));
+  return permissionCanVisit('studentDetail');
+}
 function classDetailField(label,value,wide=false){return `<div class="class-detail-field${wide?' wide':''}"><dt>${esc(label)}</dt><dd>${esc(value===null||value===undefined||value===''?'—':value)}</dd></div>`}
 function classDetailAttendanceRows(cls,session){
   return a.attendance.filter(r=>{
@@ -58,32 +66,35 @@ function classDetailStudentRows(cls){
 function classDetailStudentsHTML(cls){
   const all=classDetailStudentRows(cls),search=String(a.classStudentSearch||'').trim().toLowerCase();
   const list=all.filter(s=>s.kind===(a.classStudentTab||'在班学生')&&(!search||[s.id,s.name,s.phone].some(value=>String(value||'').toLowerCase().includes(search))));
-  return aTable(['学生ID','学生姓名','联系电话','在班状态','操作'],list.map(s=>`<tr><td>${esc(s.id)}</td><td>${esc(s.name)}${s.classStatus==='试听'?'[试听]':''}</td><td>${esc(s.phone||'—')}</td><td><span class="badge ${s.kind==='历史在班学生'?'off':''}">${esc(s.classStatus)}</span></td><td>${permissionCanVisit('studentDetail')?`<button class="btn small" onclick="classDetailStudent(${s.index})">查看档案</button>`:'—'}</td></tr>`))+(!list.length?'<div class="empty">暂无符合条件的学生</div>':'')+`<div class="data-bar">共 ${list.length} 位学生</div>`;
+  return aTable(['学生ID','学生姓名','联系电话','在班状态','操作'],list.map(s=>`<tr><td>${esc(s.id)}</td><td>${esc(s.name)}${s.classStatus==='试听'?'[试听]':''}</td><td>${esc(s.phone||'—')}</td><td><span class="badge ${s.kind==='历史在班学生'?'off':''}">${esc(s.classStatus)}</span></td><td>${classDetailCanViewStudent(s,cls)?`<button class="btn small" onclick="classDetailStudent(${s.index})">查看档案</button>`:'—'}</td></tr>`))+(!list.length?'<div class="empty">暂无符合条件的学生</div>':'')+`<div class="data-bar">共 ${list.length} 位学生</div>`;
 }
-function classDetailStudent(index){if(!permissionCanVisit('studentDetail')||!a.students[index])return;a.selectedStudent=index;nav('studentDetail')}
+function classDetailStudent(index){
+  if(state.page==='learningClassDetail'){learningClassOpenStudent(index);return}
+  if(!permissionCanVisit('studentDetail')||!a.students[index])return;a.selectedStudent=index;nav('studentDetail');
+}
 function classDetailSearch(value){a.classStudentSearch=value;const cls=classDetailCurrent();if(cls)$('#class-detail-students').innerHTML=classDetailStudentsHTML(cls)}
 function classDetailSetStudentTab(value){if(!['在班学生','历史在班学生'].includes(value))return;a.classStudentTab=value;academicRender()}
 function classDetailSetTab(value){if(!['课节','学生'].includes(value))return;a.classDetailTab=value;a.classDetailAttendance=null;academicRender()}
 function classDetailLessonsHTML(cls){
   const sessions=classDetailSessions(cls);
-  return `<div class="toolbar"><span class="count">共 ${sessions.length} 个课节</span>${permissionCanVisit('attendance')?'<button class="btn" onclick="classDetailShowAttendance(null)">查看全部考勤</button>':''}</div>`+aTable(['讲次','讲次名称','上课日期','上课时间','老师 / 教室','考勤记录','操作'],sessions.map((s,index)=>{
+  return `<div class="toolbar"><span class="count">共 ${sessions.length} 个课节</span>${classDetailCanViewAttendance(cls)?'<button class="btn" onclick="classDetailShowAttendance(null)">查看全部考勤</button>':''}</div>`+aTable(['讲次','讲次名称','上课日期','上课时间','老师 / 教室','考勤记录','操作'],sessions.map((s,index)=>{
     const records=classDetailAttendanceRows(cls,s);
-    return `<tr><td>第${s.number}讲</td><td>${esc(s.name||'—')}</td><td>${esc(s.date||'待排课')}</td><td>${esc(s.time||'待排课')}</td><td>${esc(s.teacher||'—')} / ${esc(s.room||'—')}</td><td>${records.filter(r=>r.status==='已考勤').length} / ${records.length}</td><td>${permissionCanVisit('attendance')?`<button class="btn small" onclick="classDetailShowAttendance(${index})">查看考勤</button>`:'—'}</td></tr>`;
-  }))+(!sessions.length?'<div class="empty">尚未安排课节，可通过“编辑班级”配置。</div>':'');
+    return `<tr><td>第${s.number}讲</td><td>${esc(s.name||'—')}</td><td>${esc(s.date||'待排课')}</td><td>${esc(s.time||'待排课')}</td><td>${esc(s.teacher||'—')} / ${esc(s.room||'—')}</td><td>${records.filter(r=>r.status==='已考勤').length} / ${records.length}</td><td>${classDetailCanViewAttendance(cls)?`<button class="btn small" onclick="classDetailShowAttendance(${index})">查看考勤</button>`:'—'}</td></tr>`;
+  }))+(!sessions.length?`<div class="empty">${state.page==='learningClassDetail'?'尚未安排课节':'尚未安排课节，可通过“编辑班级”配置。'}</div>`:'');
 }
-function classDetailShowAttendance(index){if(!permissionCanVisit('attendance'))return;a.classDetailAttendance={index};academicRender()}
+function classDetailShowAttendance(index){if(!classDetailCanViewAttendance()||(index!==null&&(!Number.isInteger(index)||!classDetailSessions(classDetailCurrent())[index])))return;a.classDetailAttendance={index};academicRender()}
 function classDetailCloseAttendance(){a.classDetailAttendance=null;academicRender()}
 function classDetailAttendanceModal(cls){
-  if(!a.classDetailAttendance||!permissionCanVisit('attendance'))return '';
+  if(!a.classDetailAttendance||!classDetailCanViewAttendance(cls))return '';
   const index=a.classDetailAttendance.index,session=index===null?null:classDetailSessions(cls)[index];
   if(index!==null&&!session)return '';
   const rows=classDetailAttendanceRows(cls,session);
   return `<div class="modal-backdrop"><section class="modal" style="width:900px;max-width:95vw;max-height:85vh;overflow:auto" role="dialog" aria-modal="true" aria-labelledby="class-detail-attendance-title"><div class="modal-head"><h2 id="class-detail-attendance-title">${session?`第${session.number}讲考勤记录`:'全部考勤记录'}</h2><button class="btn small" onclick="classDetailCloseAttendance()" aria-label="关闭">×</button></div><p>${esc(cls.name)}</p>${aTable(['学生','讲次','日期 / 时间','考勤状态','出勤情况'],rows.map(r=>{const student=r.studentId?a.students.find(s=>s.id===r.studentId):a.students[r.studentIndex];return `<tr><td>${esc(student?.name||'学生档案已移除')}</td><td>${esc(r.session||'—')}</td><td>${esc(r.date)} ${esc(r.time)}</td><td>${esc(r.status||'未考勤')}</td><td>${esc(r.attendance||'—')}</td></tr>`}))}${!rows.length?'<div class="empty">暂无考勤记录</div>':''}<div class="modal-actions"><button class="btn" onclick="classDetailCloseAttendance()">关闭</button></div></section></div>`;
 }
-function classDetailPage(){
+function classDetailPage({returnPage='classes',returnLabel='返回班级管理',readOnly=false}={}){
   const cls=classDetailCurrent();
   if(!cls)return '<div class="card pad"><div class="empty">班级不存在或已移除</div><button class="btn" onclick="nav(\'classes\')">返回班级管理</button></div>';
   const course=a.courses.find(c=>c.name===cls.course),tab=a.classDetailTab||'课节';
   const fields=[['课程名称',cls.course,true],['班级名称',cls.name,true],['课程分类',course?courseCategory(course):'—'],['授课形式',course?courseTeachingFormat(course)+'课':'—'],['年级',course?.grade],['学科',course?.subject],['学期',course?.term],['班型',course?.classType],['校区',cls.campus],['教室',cls.room],['授课老师',cls.teacher],['教务老师',classAcademicTeacherLabel(cls)],['学生人数上限',cls.capacity],['虚设座位',cls.virtualSeats??5],['班级状态',classScheduleStatus(cls)]];
-  return `<div class="toolbar class-detail-heading"><div class="toolbar-left"><button class="btn" onclick="nav('classes')">‹ 返回班级管理</button><h1>班级详情</h1></div><button class="btn primary" onclick="classDetailEdit()">编辑班级</button></div><div class="class-detail-layout"><section class="card pad"><h2 class="section-title">建课基本信息</h2><dl class="class-detail-grid">${fields.map(f=>classDetailField(...f)).join('')}</dl></section><section class="card"><div class="tabs" role="tablist" aria-label="班级明细">${['课节','学生'].map(t=>`<button class="tab ${tab===t?'active':''}" role="tab" aria-selected="${tab===t}" onclick="classDetailSetTab('${t}')">${t}</button>`).join('')}</div><div class="pad" role="tabpanel">${tab==='课节'?classDetailLessonsHTML(cls):`<div class="toolbar"><div class="toolbar-left">${['在班学生','历史在班学生'].map(t=>`<button class="btn ${a.classStudentTab===t?'primary':''}" onclick="classDetailSetStudentTab('${t}')">${t}</button>`).join('')}</div><input class="input" style="width:280px;max-width:100%" placeholder="搜索学生ID、姓名、联系电话" aria-label="搜索班级学生" value="${esc(a.classStudentSearch||'')}" oninput="classDetailSearch(this.value)"></div><div id="class-detail-students">${classDetailStudentsHTML(cls)}</div>`}</div></section></div>${classDetailAttendanceModal(cls)}`;
+  return `<div class="toolbar class-detail-heading"><div class="toolbar-left"><button class="btn" onclick="nav('${returnPage}')">‹ ${esc(returnLabel)}</button><h1>班级详情</h1></div>${!readOnly&&permissionCanVisit('classForm')?'<button class="btn primary" onclick="classDetailEdit()">编辑班级</button>':''}</div><div class="class-detail-layout"><section class="card pad"><h2 class="section-title">建课基本信息</h2><dl class="class-detail-grid">${fields.map(f=>classDetailField(...f)).join('')}</dl></section><section class="card"><div class="tabs" role="tablist" aria-label="班级明细">${['课节','学生'].map(t=>`<button class="tab ${tab===t?'active':''}" role="tab" aria-selected="${tab===t}" onclick="classDetailSetTab('${t}')">${t}</button>`).join('')}</div><div class="pad" role="tabpanel">${tab==='课节'?classDetailLessonsHTML(cls):`<div class="toolbar"><div class="toolbar-left">${['在班学生','历史在班学生'].map(t=>`<button class="btn ${a.classStudentTab===t?'primary':''}" onclick="classDetailSetStudentTab('${t}')">${t}</button>`).join('')}</div><input class="input" style="width:280px;max-width:100%" placeholder="搜索学生ID、姓名、联系电话" aria-label="搜索班级学生" value="${esc(a.classStudentSearch||'')}" oninput="classDetailSearch(this.value)"></div><div id="class-detail-students">${classDetailStudentsHTML(cls)}</div>`}</div></section></div>${classDetailAttendanceModal(cls)}`;
 }

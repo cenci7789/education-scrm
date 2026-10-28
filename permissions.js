@@ -3,7 +3,7 @@ const permissionGroups=[
   {id:'workspace',name:'快捷入口',items:[['quickRegister','线索登记（非招生）'],['quickTrial','预约试听'],['quickEnroll','报名']]},
   {id:'leads',name:'线索',items:[['leadTodo','今日待办'],['myLeads','我的线索'],['leadManage','线索管理']]},
   {id:'academic',name:'教务',items:[['course','课程管理'],['classes','班级管理'],['students','学生管理'],['attendance','考勤'],['makeup','缺勤管理'],['schedule','课表'],['enroll','报名'],['tempMove','临时调班'],['transfer','转课／班'],['withdraw','退课／退班'],['supplement','补费']]},
-  {id:'learning',name:'教学',items:[['learningActive','在读学生'],['learningHistory','历史学生'],['learningData','课表']]},
+  {id:'learning',name:'教学',items:[['learningClasses','班级'],['learningActive','学生'],['learningData','课表']]},
   {id:'mall',name:'商城工具',items:[['mallDecor','商城装修'],['mallShelf','课程上架'],['mallGroup','拼团'],['mallJoint','联报'],['mallCoupon','优惠券'],['mallInvite','邀请有礼'],['wechatLive','微信活码'],['marketingForms','表单']]},
   {id:'finance',name:'财务中心',items:[['orders','收费订单'],['financeRefunds','退转记录'],['financeArrears','欠费记录'],['financeConsumption','课消记录'],['financeReceipts','收款设置']]},
   {id:'settings',name:'基础设置',items:[['system','分校配置'],['campus','校区配置'],['teaching','教学配置'],['staff','员工列表'],['positions','职位管理'],['permissions','权限管理（只读）'],['permissionLogs','权限变更日志']]}
@@ -13,7 +13,7 @@ const permissionState={identity:'admin',roles:[
   {id:'finance',name:'财务岗',active:true,grants:['orders','financeRefunds','financeArrears','financeConsumption','financeReceipts']},
   {id:'sales',name:'招生综合岗',active:true,grants:['quickRegister','quickTrial','quickEnroll','leadTodo','myLeads','leadManage','enroll']},
   {id:'academic',name:'教务岗',active:true,grants:['classes','students','attendance','makeup','schedule','course']},
-  {id:'manager',name:'业务岗负责人',active:true,grants:['leadTodo','myLeads','learningActive','learningHistory','staff','permissions']}
+  {id:'manager',name:'业务岗负责人',active:true,grants:['leadTodo','myLeads','staff','permissions']}
 ],selected:'finance',working:new Set(),dirty:false,logs:[],positionMode:null,positionEdit:null,modal:null,pendingPage:null,pendingRole:null,pendingIdentity:null,currentPage:state.page};
 state.staff[0].roleId='manager';state.staff[1].roleId='sales';
 state.staff.push(...[['孙倩','sunqian','城东校区',27,11],['李强','liqiang','城西校区',24,9],['赵磊','zhaolei','滨江校区',19,6],['陈静','chenjing','滨江校区',16,14],['周婷','zhouting','城西校区',13,4]].map(([name,account,campus,conversionRate,pendingLeads])=>({name,account,phone:'138****0000',gender:'女',campus,roleId:'sales',active:true,conversionRate,pendingLeads})));
@@ -42,7 +42,7 @@ function permissionCanVisit(page){
   if(page==='leadDetail'&&leadState.returnPage==='quickRegister')return shortcutOwnLead(leadState.leads[leadState.selected]);
   if(permissionState.identity==='admin')return true;
   const role=permissionRole();if(!role||!role.active)return false;
-  const aliases={leadForm:['leadTodo','myLeads','leadManage'],leadDetail:['leadTodo','myLeads','leadManage'],studentDetail:['students','learningActive','learningHistory'],studentCommunication:['students'],studentCourses:['students'],courseForm:['course'],classForm:['classes'],classDetail:['classes'],mallForm:['mallGroup','mallJoint','mallCoupon','mallInvite'],wechatLiveForm:['wechatLive'],marketingFormBuilder:['marketingForms'],marketingFormPreview:['marketingForms'],marketingFormSubmissions:['marketingForms']};
+  const aliases={leadForm:['leadTodo','myLeads','leadManage'],leadDetail:['leadTodo','myLeads','leadManage'],studentDetail:['students','learningActive'],studentCommunication:['students'],studentCourses:['students'],courseForm:['course'],classForm:['classes'],classDetail:['classes'],mallForm:['mallGroup','mallJoint','mallCoupon','mallInvite'],wechatLiveForm:['wechatLive'],marketingFormBuilder:['marketingForms'],marketingFormPreview:['marketingForms'],marketingFormSubmissions:['marketingForms']};
   if(aliases[page])return aliases[page].some(p=>role.grants.includes(p));
   return role.grants.includes(page);
 }

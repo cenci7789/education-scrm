@@ -37,7 +37,7 @@ assert.equal(run(`leadState.leads.find(l=>l.leadId==='MVP-LEAD').history.filter(
 run('businessRestore(JSON.parse(JSON.stringify(businessSnapshot())))');
 run(`state.page='supplement';a.selectedStudent=a.students.findIndex(s=>s.id==='MVP-STUDENT');supplementSelectClass(a.orders[0].items[0].classId)`);
 const debt=run('supplementFeeData().debt');assert(debt>0);
-run(`supplementReceiptField(0,'channel','POS刷卡');supplementReceiptField(0,'amount','${debt/100}');supplementSubmit();supplementSubmit()`);
+run(`supplementReceiptField(0,'channel','POS刷卡');supplementReceiptField(0,'amount','${debt/100}');supplementDraft().receipts[0].proofs=[{fileName:'补费回单.pdf',url:'blob:supplement-fixture'}];supplementSubmit();supplementDraft().receipts[0].proofs=[{fileName:'补费回单.pdf',url:'blob:supplement-fixture'}];supplementSubmit()`);
 assert.equal(run('a.orders[0].status'),'交易成功');
 assert.equal(run(`shortcutConvertedLeadIds().has('MVP-LEAD')`),true);
 assert.equal(run(`a.students.find(s=>s.id==='MVP-STUDENT').enrollments[0].paidCents`),run('a.orders[0].items[0].dueCents'));

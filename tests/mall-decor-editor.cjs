@@ -11,7 +11,7 @@ function harness(saved){
 }
 const h=harness(),{run,node}=h;
 function checkHandlers(markup){for(const match of markup.matchAll(/\bon(?:click|change|input)="([^"]*)"/g)){const code=match[1].replaceAll('&quot;','"').replaceAll('&#39;',"'").replaceAll('&lt;','<').replaceAll('&gt;','>').replaceAll('&amp;','&');new vm.Script('(function(){'+code+'})')}}
-const pages=['mallShelf','mallGroup','mallJoint','mallCoupon','learningActive','learningHistory','learningData','withdraw','supplement'];
+const pages=['mallShelf','mallGroup','mallJoint','mallCoupon','learningClasses','learningActive','learningData','withdraw','supplement'];
 function outputs(){return Object.fromEntries(pages.map(route=>{run(`state.page='${route}';render()`);return [route,node('#view').innerHTML]}))}
 const before=outputs(),shelfState=run('JSON.stringify([mallState.shelved,mallState.hiddenShelved,mallState.activities])');
 h.load();assert.deepEqual(outputs(),before,'non-decoration page rendering unchanged by module');

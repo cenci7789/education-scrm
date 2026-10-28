@@ -1,0 +1,13 @@
+module.exports=function(){
+  state.staff=[{id:'T1',name:'授课甲',account:'teacher-a',roleId:'teacher',active:true},{id:'T2',name:'授课乙',account:'teacher-b',roleId:'teacher',active:true}];
+  a.courses=[{name:'秋季数学',year:'2026',term:'秋季',grade:'6年级',subject:'数学',classType:'S+班',teachingFormat:'面授',fee:600,sessions:[{name:'一'},{name:'二'}]},
+    {name:'寒假数学',year:'2027',term:'寒假',grade:'6年级',subject:'数学',classType:'S+班',teachingFormat:'面授',fee:600,sessions:[{name:'一'},{name:'二'}]}];
+  a.classes=[{id:'C1',name:'秋季甲班',course:'秋季数学',teacherId:'T1',teacher:'授课甲',campus:'乐桥校区',room:'01',date:'2026-10-31',time:'08:00–10:00',capacity:20,students:1,sessions:[{id:'L1',date:'2026-10-31',time:'08:00–10:00'},{id:'L2',date:'2026-11-07',time:'08:00–10:00'}]},
+    {id:'C2',name:'秋季乙班',course:'秋季数学',teacherId:'T2',teacher:'授课乙',campus:'高新校区',date:'2026-10-31',time:'08:00–10:00',capacity:20,students:1},
+    {id:'N1',name:'寒假甲班',course:'寒假数学',teacherId:'T1',teacher:'授课甲',campus:'乐桥校区',date:'2027-01-10',time:'08:00–10:00',capacity:20,students:0},
+    {id:'N2',name:'寒假乙班',course:'寒假数学',teacherId:'T2',teacher:'授课乙',campus:'高新校区',date:'2027-01-10',time:'08:00–10:00',capacity:20,students:0}];
+  a.students=[{id:'S1',name:'王小虎',phone:'13800138000',grade:'6年级',campus:'乐桥校区',status:'在读',enrollments:[{classId:'C1',enrollmentStatus:'上课中'},{classId:'C2',enrollmentStatus:'上课中'}]},
+    {id:'S2',name:'他班学生',phone:'13800138001',grade:'6年级',enrollments:[{classId:'C2',enrollmentStatus:'上课中'}]},
+    {id:'S3',name:'试听学生',phone:'13800138002',grade:'6年级',status:'试听',enrollments:[]}];
+  a.orders=[];trialState.requests=[];permissionState.identity='academic';state.currentUser=null;state.page='students';
+};

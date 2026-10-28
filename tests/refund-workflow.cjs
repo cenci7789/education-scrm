@@ -19,7 +19,7 @@ function call(step,method='balance',amount){
 (async()=>{
   role('academic');run("a.selectedStudent=0;refundNew()");
   for(const label of ['退款去向','银行卡号','开户人','开户行','退款方式'])assert(!page().includes(label),'creation must not show '+label);
-  assert(page().includes('退课信息'));assert(page().includes('费用信息'));
+  assert(page().includes('flow-student-summary'));assert(page().includes('费用信息'));
   const id=create(0);
   assert.equal(run('withdrawBalanceCents(a.students[0])'),0);assert.equal(run('a.refundApplications.length'),1);
   run("refundFinanceComplete()");assert.equal(run('refundCurrent().step'),1,'cannot jump to finance');

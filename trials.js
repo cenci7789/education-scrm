@@ -122,9 +122,18 @@ function trialLog(r,title,text,attachment={}){
   if(lead)lead.history.push(leadHistoryEntry(title,text,attachment,new Date().toLocaleString('zh-CN')));
 }
 function trialBadge(status){return `<span class="badge ${status==='待排班'?'trial-pending':status==='已取消'?'off':''}">${esc(status)}</span>`}
+function trialRequestSessionLabel(r){
+  const confirmed=r.status==='已排班',cls=a.classes.find(c=>c.id===(confirmed?r.classId:r.requestedClassId));
+  const id=confirmed?r.scheduledSessionId||r.requestedSessionId:r.requestedSessionId;
+  const start=confirmed?r.scheduledTime:r.preferredTime;
+  const session=cls&&trialClassSessions(cls).find(s=>id?s.id===id:start&&Date.parse(s.startsAt)===Date.parse(start));
+  const name=(confirmed?r.scheduledSessionName:r.requestedSessionName)||session?.name||'未指定';
+  const number=(confirmed?r.scheduledSessionNumber:r.requestedSessionNumber)||session?.number;
+  return number&&!/^第\s*\d+\s*讲(?:\s|[：:、.．-]|$)/.test(name)?`第${number}讲 · ${name}`:name;
+}
 function trialSummary(r){
   const studentFields=[['学生姓名',r.name],['联系电话',leadDetailPhone(r.phone)],['就读年级',r.grade||'未填写'],['公立学校',(r.schools||[]).filter(s=>s.name).map(s=>s.stage+' · '+s.name+(s.entryYear?' · '+s.entryYear+'年入学':'')).join('；')||'未填写'],['学生性别',r.gender||'未填写'],['招生家长',r.guardian||'未填写']];
-  const bookingFields=[['来源渠道',r.source||'未填写'],...(Array.isArray(r.classes)?[]:[['预约班级',r.requestedClassName||'未指定'],['预约课节',r.requestedSessionName||'未指定'],['试听课程',r.course],['意向校区',r.campus],['试听时间',r.preferredTime?.replace('T',' ')||'待教务安排']])];
+  const bookingFields=[['来源渠道',r.source||'未填写'],...(Array.isArray(r.classes)?[]:[['预约班级',r.requestedClassName||'未指定'],['预约课节',trialRequestSessionLabel(r)],['试听课程',r.course],['意向校区',r.campus],['试听时间',r.preferredTime?.replace('T',' ')||'待教务安排']])];
   const fieldsHTML=fields=>`<dl class="trial-confirm-grid">${fields.map(([label,value,full])=>`<div class="trial-confirm-field${full?' full':''}"><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>`;
   const files=r.files||(r===trialState.draft&&leadRecordDraft?.context==='trial'?leadRecordDraft.items.map(item=>({fileName:item.file.name,url:item.url,kind:item.kind})):[]);
   return `<section class="trial-confirm-section"><h2 class="section-title">学生信息</h2>${fieldsHTML(studentFields)}</section>

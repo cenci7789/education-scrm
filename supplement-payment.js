@@ -2,7 +2,7 @@
 let supplementSequence=0;
 function supplementDraft(){
   const studentId=a.students[a.selectedStudent]?.id||'',actor=studentTermActor();
-  if(!a.supplementDraft||a.supplementDraft.studentId!==studentId||a.supplementDraft.actor!==actor)a.supplementDraft={studentId,actor,classId:'',receipts:[{channel:'',amount:''}],note:'',snapshot:''};
+  if(!a.supplementDraft||a.supplementDraft.studentId!==studentId||a.supplementDraft.actor!==actor){supplementDisposeProofs();a.supplementDraft={studentId,actor,classId:'',mode:'手动录入',receipts:[{channel:'现金',amount:''}],note:'',snapshot:''}};
   return a.supplementDraft;
 }
 function supplementClasses(){
@@ -51,34 +51,62 @@ function supplementFeeData(){
 }
 function supplementSnapshot(data){return JSON.stringify({order:data.order?.id,studentId:supplementDraft().studentId,classId:supplementDraft().classId,item:data.item,paid:data.order?.paid,status:data.order?.status})}
 function supplementSelectClass(value){
-  const d=supplementDraft();d.classId=supplementClasses().some(c=>c.id===value)?value:'';d.receipts=[{channel:'',amount:''}];d.note='';d.snapshot=supplementSnapshot(supplementFeeData());academicRender();
+  const d=supplementDraft();supplementDisposeProofs();d.mode='手动录入';d.classId=supplementClasses().some(c=>c.id===value)?value:'';d.receipts=[{channel:'现金',amount:''}];d.note='';d.snapshot=supplementSnapshot(supplementFeeData());academicRender();
 }
 function supplementReceiptField(index,key,value){
   const d=supplementDraft();if(!d.receipts[index]||!['channel','amount'].includes(key))return;
   d.receipts[index][key]=value;supplementRefreshTotals();
 }
-function supplementPaidInput(){return supplementDraft().receipts.reduce((sum,r)=>sum+(enrollmentAmountCents(r.amount)??0),0)}
+function supplementPaidInput(){if(supplementDraft().mode!=='手动录入')return 0;return supplementDraft().receipts.reduce((sum,r)=>sum+(enrollmentAmountCents(r.amount)??0),0)}
 function supplementRefreshTotals(){
   const data=supplementFeeData(),paid=supplementPaidInput();
   const total=$('#supplement-paid'),remaining=$('#supplement-debt');
   if(total)total.textContent=withdrawMoney(paid);
   if(remaining)remaining.textContent=data.debt===null?'—':withdrawMoney(Math.max(0,data.debt-paid));
 }
-function supplementAddReceipt(){supplementDraft().receipts.push({channel:'',amount:''});academicRender()}
-function supplementRemoveReceipt(index){if(supplementDraft().receipts.length>1)supplementDraft().receipts.splice(index,1);academicRender()}
-function supplementCancel(){a.supplementDraft=null;a.selectedStudent=null;academicRender()}
+function supplementAddReceipt(){supplementDraft().receipts.push({channel:'现金',amount:''});academicRender()}
+function supplementRemoveReceipt(index){const d=supplementDraft();if(d.receipts.length>1){for(const proof of d.receipts[index]?.proofs||[])URL.revokeObjectURL(proof.url);d.receipts.splice(index,1)}academicRender()}
+function supplementChangePayMode(mode){if(['手动录入','商城支付'].includes(mode)){supplementDraft().mode=mode;academicRender()}}
+function supplementAddProofs(index,files){
+  const receipt=supplementDraft().receipts[index];if(!receipt)return;
+  const errors=enrollmentAppendProofs(receipt,files);academicRender();
+  if(errors.length)toast([...new Set(errors)].join('；'));
+}
+function supplementRemoveProof(index,proofIndex){
+  const removed=supplementDraft().receipts[index]?.proofs?.splice(proofIndex,1)[0];
+  if(removed)URL.revokeObjectURL(removed.url);academicRender();
+}
+function supplementDisposeProofs(){
+  for(const receipt of a.supplementDraft?.receipts||[])for(const proof of receipt.proofs||[])URL.revokeObjectURL(proof.url);
+}
+function supplementPendingNotice(data){
+  const pending=(data.order?.supplementPaymentRequests||[]).filter(row=>row.classId===supplementDraft().classId&&row.status==='等待付款');
+  return pending.length?'<p class="checkout-payment-notice">已生成待付款补费单；尚未收款，原订单实收及欠费未变。</p>':'';
+}
+function supplementCreatePending(data,d,student){
+  const requests=data.order.supplementPaymentRequests||[];
+  if(requests.some(row=>row.classId===d.classId&&row.status==='等待付款')){toast('该班级已有待付款补费单，请勿重复提交');return}
+  (data.order.supplementPaymentRequests??=[]).push({id:'BFP'+Date.now()+'-'+(++supplementSequence),studentId:student.id,classId:d.classId,orderId:data.order.id,amountCents:data.debt,paidCents:0,status:'等待付款',mode:'商城支付',note:d.note,operator:studentExamOperator(),recordedAt:new Date().toISOString()});
+  d.snapshot=supplementSnapshot(supplementFeeData());academicRender();toast('已生成待付款补费单，商城支付服务待接入');
+}
+function supplementCancel(){supplementDisposeProofs();a.supplementDraft=null;a.selectedStudent=null;academicRender()}
 function supplementFeeSection(title,note,due,paid,extra='',paidExtra=''){
   const money=n=>n===null?'—':withdrawMoney(n);
   return `<section class="supplement-box"><h2>${title} <span class="help">${note}</span></h2><div class="summary-line"><span>应收</span><span>${money(due)}${extra}</span></div><div class="summary-line"><span>已缴费</span><span>${money(paid)}${paidExtra}</span></div><div class="summary-line supplement-owing"><span>欠费</span><strong>${due===null||paid===null?'—':money(due-paid)}</strong></div></section>`;
 }
 function supplementPage(){
   const d=supplementDraft(),student=a.students[a.selectedStudent],classes=supplementClasses(),data=supplementFeeData(),money=n=>n===null?'—':withdrawMoney(n),selected=classes.some(c=>c.id===d.classId);
-  return aHeading('学生补费','为已报名课程或班级补收费用')+`<section class="card pad"><div class="supplement-form"><div class="supplement-student">${student?`<div><strong>${esc(student.name)}</strong><span>${esc(student.phone)}</span><span>${classes.length} 个已报名课程／班级</span><p class="help">${esc(student.campus||'')}</p></div>`:'<span class="help">请先选择学生</span>'}<button class="btn small ${student?'':'primary'}" onclick="a.modal='selectStudent';academicRender()">${student?'重新选择':'选择学生'}</button></div>${aField('选择课程／班级',`<select class="select" id="flow-from" ${student?'':'disabled'} onchange="supplementSelectClass(this.value)"><option value="">${student?'请选择已报名课程／班级':'请先选择学生'}</option>${classes.map(c=>`<option value="${esc(c.id)}" ${d.classId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`,true)}${student&&!classes.length?'<p class="help">该学生暂无可补费的已报名班级。</p>':''}${selected?`
+  return aHeading('学生补费','为已报名课程或班级补收费用')+`<section class="card pad"><div class="supplement-form">${student?`<div class="supplement-student"><div><strong>${esc(student.name)}</strong><span>${esc(student.phone)}</span><span>${classes.length} 个已报名课程／班级</span><p class="help">${esc(student.campus||'')}</p></div><button class="btn small" onclick="a.modal='selectStudent';academicRender()">重新选择</button></div>`:flowStudentSummary(null)}${aField('选择课程／班级',`<select class="select" id="flow-from" ${student?'':'disabled'} onchange="supplementSelectClass(this.value)"><option value="">${student?'请选择已报名课程／班级':'请先选择学生'}</option>${classes.map(c=>`<option value="${esc(c.id)}" ${d.classId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`,true)}${student&&!classes.length?'<p class="help">该学生暂无可补费的已报名班级。</p>':''}${selected?`
     ${supplementFeeSection('学费','（退费说明：根据未上讲次退）',data.tuitionDue,data.tuitionPaid,data.purchased===null?'':` <small>（已报${data.purchased}讲次）</small>`,data.used===null?'':` <small>（已上${data.used}讲次）</small>`)}
     ${data.error?`<p class="help" role="status">${esc(data.error)}</p>`:data.tuitionPaid===null||data.materialPaid===null?'<p class="help">历史收费明细不完整，分项已缴及欠费显示“—”；请核对原订单。</p>':''}
-    <h2 class="section-title supplement-payment-title">支付信息</h2><section class="supplement-box"><div class="summary-line"><span>总价（本次待补）</span><strong>${money(data.debt)}</strong></div><div class="summary-line"><span>实付金额</span><strong id="supplement-paid">${withdrawMoney(supplementPaidInput())}</strong></div><div class="summary-line supplement-owing"><span>欠费（本次补费后）</span><strong id="supplement-debt">${data.debt===null?'—':money(Math.max(0,data.debt-supplementPaidInput()))}</strong></div>${d.receipts.map((r,i)=>`<div class="supplement-receipt"><select class="select" aria-label="第${i+1}笔缴费方式" onchange="supplementReceiptField(${i},'channel',this.value)"><option value="">请选择缴费方式</option>${enrollmentManualChannels.map(channel=>`<option ${r.channel===channel?'selected':''}>${channel}</option>`).join('')}</select><input class="input" inputmode="decimal" aria-label="第${i+1}笔缴费金额" placeholder="请输入金额" value="${esc(r.amount)}" oninput="supplementReceiptField(${i},'amount',this.value)"><button type="button" class="btn small" aria-label="${i?'移除此笔缴费':'添加缴费方式'}" onclick="${i?`supplementRemoveReceipt(${i})`:'supplementAddReceipt()'}">${i?'－':'＋'}</button></div>`).join('')}</section>
-    <p class="help">本次补费仅抵扣所选班级的学费欠费。</p>
-    <div class="field supplement-note"><label for="supplement-note">备注</label><textarea class="textarea" id="supplement-note" maxlength="50" placeholder="请输入50字以内备注内容（非必填）" oninput="supplementDraft().note=this.value">${esc(d.note)}</textarea></div>`:''}
+    <div class="enrollment-checkout supplement-checkout"><section><h2 class="section-title">费用结算</h2>
+    <div class="checkout-field"><label>本次待补</label><strong>${money(data.debt)}</strong></div>
+    <div class="checkout-field"><label>实收合计</label><strong id="supplement-paid">${withdrawMoney(supplementPaidInput())}</strong></div>
+    <div class="checkout-field"><label>补费后欠费</label><strong id="supplement-debt">${data.debt===null?'—':money(Math.max(0,data.debt-supplementPaidInput()))}</strong></div>
+    <p class="help">本次补费仅抵扣所选班级的学费欠费。</p></section>
+    <section><h2 class="section-title">收款</h2><div class="checkout-field"><label class="required">支付方式</label><div class="lead-radio">${['手动录入','商城支付'].map(mode=>`<label><input type="radio" name="supplement-mode" value="${mode}" ${d.mode===mode?'checked':''} onclick="supplementChangePayMode(this.value)"> ${mode}</label>`).join('')}</div></div>${enrollmentReceiptFields('supplement')}${supplementPendingNotice(data)}</section>
+    <section><h2 class="section-title">其他信息</h2><div class="checkout-field"><label class="required">经办人</label><strong>${esc(leadIdentityLabel(leadCurrentOperator()))}</strong></div>
+    <div class="checkout-field"><label for="supplement-note">备注</label><textarea class="textarea" id="supplement-note" maxlength="50" placeholder="请输入50字以内备注内容（非必填）" oninput="supplementDraft().note=this.value">${esc(d.note)}</textarea></div></section></div>`:''}
     <div class="form-actions"><button class="btn" onclick="supplementCancel()">取消</button><button class="btn primary" ${!selected||data.error||!data.debt?'disabled':''} onclick="finishFlow('supplement')">确定</button></div></div></section>`;
 }
 function supplementSubmit(){
@@ -88,11 +116,13 @@ function supplementSubmit(){
   const data=supplementFeeData();if(data.error||!data.debt){toast(data.error||'该班级没有待补费用');return}
   if(d.snapshot!==supplementSnapshot(data)){d.snapshot=supplementSnapshot(data);academicRender();toast('收费明细已更新，请重新核对金额后提交');return}
   if(d.note.length>50){toast('备注不能超过50字');return}
+  if(!['手动录入','商城支付'].includes(d.mode)){toast('请选择支付方式');return}
+  if(d.mode==='商城支付'){supplementCreatePending(data,d,student);return}
   const receipts=[];
-  for(const row of d.receipts){const amountCents=enrollmentAmountCents(row.amount);if(!enrollmentManualChannels.includes(row.channel)||amountCents===null||amountCents<=0){toast('请选择每笔缴费方式并填写有效正数金额（最多两位小数）');return}receipts.push({channel:row.channel,amountCents})}
+  for(const row of d.receipts){const amountCents=enrollmentAmountCents(row.amount);if(!enrollmentManualChannels.includes(row.channel)||amountCents===null||amountCents<=0){toast('请选择每笔缴费方式并填写有效正数金额（最多两位小数）');return}if(!row.proofs?.length){toast('请为每笔手动收款上传凭证');return}receipts.push({channel:row.channel,amountCents,proofs:row.proofs.map(proof=>({...proof}))})}
   const amount=receipts.reduce((sum,r)=>sum+r.amountCents,0);
   if(!Number.isSafeInteger(amount)||amount>data.debt||data.orderPaid+amount>data.orderDue){toast('实付金额不能超过欠费金额');return}
-  const allocation=supplementAllocation(data,amount),record={id:'BF'+Date.now()+'-'+(++supplementSequence),studentId:student.id,classId:d.classId,orderId:data.order.id,amountCents:amount,receipts,note:d.note,operator:studentExamOperator(),recordedAt:new Date().toISOString(),paidBeforeCents:data.paid,paidAfterCents:data.paid+amount,...allocation};
+  const allocation=supplementAllocation(data,amount),record={id:'BF'+Date.now()+'-'+(++supplementSequence),studentId:student.id,classId:d.classId,orderId:data.order.id,amountCents:amount,mode:d.mode,receipts,note:d.note,operator:studentExamOperator(),recordedAt:new Date().toISOString(),paidBeforeCents:data.paid,paidAfterCents:data.paid+amount,...allocation};
   data.item.paidCents=record.paidAfterCents;
   if(allocation.tuitionCents!==null){data.item.paidTuitionCents=data.tuitionPaid+allocation.tuitionCents;data.item.paidMaterialCents=data.materialPaid+allocation.materialCents}
   data.order.paid=withdrawMoney(data.orderPaid+amount);data.order.status=data.orderPaid+amount===data.orderDue?'交易成功':'等待付款';
@@ -103,7 +133,9 @@ function supplementSubmit(){
     item.paidCents=data.item.paidCents;item.paidTuitionCents=data.item.paidTuitionCents;item.paidMaterialCents=data.item.paidMaterialCents;
   }
   (a.supplementRecords??=[]).push(record);
-  d.receipts=[{channel:'',amount:''}];d.note='';d.snapshot=supplementSnapshot(supplementFeeData());academicRender();toast('补费已记录，欠费与原订单实收已更新（原型演示）');
+  // A later manual payment supersedes a pending checkout for the old debt amount.
+  for(const request of data.order.supplementPaymentRequests||[])if(request.classId===d.classId&&request.status==='等待付款'){request.status='已关闭';request.closedAt=record.recordedAt;request.closedReason='已办理手动补费'}
+  d.receipts=[{channel:'现金',amount:''}];d.note='';d.snapshot=supplementSnapshot(supplementFeeData());academicRender();toast('补费已记录，欠费与原订单实收已更新（原型演示）');
 }
 function supplementAllocation(data,amount){
   if(data.tuitionPaid===null||data.materialPaid===null)return {tuitionCents:null,materialCents:null};
@@ -115,4 +147,4 @@ flowPage=function(type){return type==='supplement'?supplementPage():supplementPr
 const supplementPreviousFinish=finishFlow;
 finishFlow=function(type){return type==='supplement'?supplementSubmit():supplementPreviousFinish(type)};
 const supplementPreviousRender=academicRender;
-academicRender=function(){if(a.supplementDraft&&(state.page!=='supplement'||a.supplementDraft.actor!==studentTermActor()||a.supplementDraft.studentId!==a.students[a.selectedStudent]?.id))a.supplementDraft=null;return supplementPreviousRender()};
+academicRender=function(){if(a.supplementDraft&&(state.page!=='supplement'||a.supplementDraft.actor!==studentTermActor()||a.supplementDraft.studentId!==a.students[a.selectedStudent]?.id)){supplementDisposeProofs();a.supplementDraft=null}return supplementPreviousRender()};

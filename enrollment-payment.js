@@ -55,6 +55,11 @@ function enrollmentRemoveReceipt(index){
 function enrollmentAddProofs(index,files){
   const receipt=enrollmentCheckout().receipts[index];if(!receipt)return;
   enrollmentCaptureCheckout();
+  const errors=enrollmentAppendProofs(receipt,files);
+  academicRender();
+  if(errors.length)toast([...new Set(errors)].join('；'));
+}
+function enrollmentAppendProofs(receipt,files){
   receipt.proofs=receipt.proofs||[];
   const errors=[];
   for(const file of Array.from(files)){
@@ -63,8 +68,7 @@ function enrollmentAddProofs(index,files){
     if(receipt.proofs.length>=10){errors.push('每笔收款最多上传10份凭证');break}
     receipt.proofs.push({fileName:file.name,size:file.size,type:file.type,url:URL.createObjectURL(file),image:/\.(png|jpe?g|webp|gif)$/i.test(file.name)&&file.type.startsWith('image/')});
   }
-  academicRender();
-  if(errors.length)toast([...new Set(errors)].join('；'));
+  return errors;
 }
 function enrollmentRemoveProof(receiptIndex,proofIndex){
   enrollmentCaptureCheckout();
@@ -89,15 +93,17 @@ function enrollmentOrderProofsHTML(order){
 }
 function enrollmentToggleCoupon(){enrollmentCaptureCheckout();const checkout=enrollmentCheckout();checkout.couponOpen=!checkout.couponOpen;academicRender()}
 function enrollmentPaymentBack(){enrollmentCaptureCheckout();a.enrollStep=2;academicRender()}
-function enrollmentReceiptFields(){
-  const checkout=enrollmentCheckout();
+function enrollmentReceiptFields(context='enrollment'){
+  const supplement=context==='supplement',checkout=supplement?supplementDraft():enrollmentCheckout();
+  const api=supplement?'supplement':'enrollment',prefix=supplement?'supplement-':'';
+  const receiptId=(index,key)=>prefix+enrollmentReceiptId(index,key);
   if(checkout.mode!=='手动录入')return '<p class="checkout-payment-notice">商城支付尚未接入支付服务，提交后仅生成待付款订单。</p>';
   return `<div class="checkout-field"><label class="required">实收金额</label><div class="checkout-receipts">${checkout.receipts.map((receipt,index)=>`<div class="checkout-receipt-group"><div class="checkout-receipt">
-    ${enrollmentSelect(enrollmentReceiptId(index,'channel'),enrollmentManualChannels,receipt.channel,'选择收款渠道')}
-    <input class="input" id="${enrollmentReceiptId(index,'amount')}" type="number" min="0" step="0.01" value="${esc(receipt.amount)}" placeholder="请输入金额" aria-label="第${index+1}笔实收金额" oninput="enrollmentCheckout().receipts[${index}].amount=this.value">
-    <button class="btn small" onclick="document.getElementById('pay-proof-${index}').click()">＋ 上传凭证（必填）</button><input id="pay-proof-${index}" type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx" multiple hidden onchange="enrollmentAddProofs(${index},this.files)">
-    ${index===0?'<button class="checkout-link" onclick="enrollmentAddReceipt()">＋ 添加收款</button>':`<button class="btn small" onclick="enrollmentRemoveReceipt(${index})">移除收款</button>`}</div>
-    <div class="checkout-proofs">${(receipt.proofs||[]).map((proof,proofIndex)=>`<div class="checkout-proof">${enrollmentProofLink(proof)}<button class="checkout-link" aria-label="移除凭证${esc(proof.fileName)}" onclick="enrollmentRemoveProof(${index},${proofIndex})">移除</button></div>`).join('')}</div></div>`).join('')}<p class="help">每笔手动收款须上传凭证。支持图片、PDF、Word、Excel，每份不超过20 MB。凭证随业务记录保存在本机浏览器中。</p></div></div>`;
+    <select class="select" id="${receiptId(index,'channel')}" aria-label="第${index+1}笔收款渠道" onchange="${supplement?`supplementReceiptField(${index},'channel',this.value)`:`enrollmentCheckout().receipts[${index}].channel=this.value`}"><option value="">选择收款渠道</option>${enrollmentManualChannels.map(channel=>`<option value="${channel}" ${receipt.channel===channel?'selected':''}>${channel}</option>`).join('')}</select>
+    <input class="input" id="${receiptId(index,'amount')}" type="number" min="0" step="0.01" value="${esc(receipt.amount)}" placeholder="请输入金额" aria-label="第${index+1}笔实收金额" oninput="${supplement?`supplementReceiptField(${index},'amount',this.value)`:`enrollmentCheckout().receipts[${index}].amount=this.value`}">
+    <button class="btn small" onclick="document.getElementById('${prefix}pay-proof-${index}').click()">＋ 上传凭证（必填）</button><input id="${prefix}pay-proof-${index}" type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx" multiple hidden onchange="${api}AddProofs(${index},this.files)">
+    ${index===0?`<button class="checkout-link" onclick="${api}AddReceipt()">＋ 添加收款</button>`:`<button class="btn small" onclick="${api}RemoveReceipt(${index})">移除收款</button>`}</div>
+    <div class="checkout-proofs">${(receipt.proofs||[]).map((proof,proofIndex)=>`<div class="checkout-proof">${enrollmentProofLink(proof)}<button class="checkout-link" aria-label="移除凭证${esc(proof.fileName)}" onclick="${api}RemoveProof(${index},${proofIndex})">移除</button></div>`).join('')}</div></div>`).join('')}<p class="help">每笔手动收款须上传凭证。支持图片、PDF、Word、Excel，每份不超过20 MB。凭证随业务记录保存在本机浏览器中。</p></div></div>`;
 }
 enrollPayment=function(){
   const d=a.enrollment.data,checkout=enrollmentCheckout(),quote=enrollmentQuote(),operator=leadCurrentOperator();
