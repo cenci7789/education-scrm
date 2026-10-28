@@ -1,4 +1,12 @@
 // 临时调班单独使用可搜索班级选择器，其余业务表单保持原样。
+function flowStudentSummary(student){
+  const select="a.modal='selectStudent';academicRender()";
+  if(!student)return `<div class="toolbar"><button class="btn primary" onclick="${select}">选择学生</button></div>`;
+  const enrollments=typeof studentTermEnrollments==='function'?studentTermEnrollments().filter(row=>row.studentId===student.id&&!['已退班','已退费','已取消','已转班','已结课'].includes(row.status)):[];
+  const count=new Set(enrollments.map(row=>row.classId||row.className).filter(Boolean)).size;
+  const campus=student.campus||[...new Set(enrollments.map(row=>row.campus).filter(Boolean))].join('、')||'未设置校区';
+  return `<div class="flow-student-summary"><div class="flow-student-main"><div class="flow-student-line"><strong>${esc(student.name)}</strong><span>${esc(student.phone||'未填写联系电话')}</span><span>${count} 个已报名课程 / 班级</span></div><div class="flow-student-campus">${esc(campus)}</div></div><button class="btn small" onclick="${select}">重新选择</button></div>`;
+}
 function tempMoveDraft(){
   const studentId=a.students[a.selectedStudent]?.id||'',actor=studentTermActor();
   if(!a.tempMoveDraft||a.tempMoveDraft.studentId!==studentId||a.tempMoveDraft.actor!==actor)a.tempMoveDraft={studentId,actor,from:{id:'',query:'',session:''},to:{id:'',query:'',session:''},note:''};
@@ -45,7 +53,7 @@ const tempMovePreviousFlowPage=flowPage;
 flowPage=function(type){
   if(type!=='tempMove')return tempMovePreviousFlowPage(type);
   const draft=tempMoveDraft(),student=a.students[a.selectedStudent];
-  return aHeading('临时调班','为学生调整指定讲次的班级')+`<div class="card pad"><div class="toolbar"><button class="btn primary" onclick="a.modal='selectStudent';academicRender()">${student?'重新选择学生':'选择学生'}</button>${student?`<span class="module-chip">${esc(student.name)} · ${esc(student.phone||'')}</span>`:''}</div><p class="academic-note">直播、录播和磨励课程暂不支持临时调班。</p><div class="flow-layout">${['from','to'].map((side,index)=>`${index?'<div class="flow-arrow">→</div>':''}<div class="flow-card"><h2 class="section-title">${side==='from'?'调出信息':'调入信息'}</h2>${aField('选择班级',tempMovePicker(side),true)}<div style="margin-top:16px">${aField('选择讲次',`<div id="temp-move-session-${side}">${tempMoveSessionSelect(side)}</div>`,true)}</div></div>`).join('')}</div><hr class="divider"><div class="form-grid"><div class="field full"><label for="temp-move-note">备注</label><textarea class="textarea" id="temp-move-note" maxlength="50" placeholder="请输入50字以内备注" oninput="tempMoveDraft().note=this.value">${esc(draft.note)}</textarea></div></div><div class="form-actions"><button class="btn" onclick="tempMoveCancel()">取消</button><button class="btn primary" onclick="finishFlow('tempMove')">确定</button></div></div>`;
+  return aHeading('临时调班','为学生调整指定讲次的班级')+`<div class="card pad">${flowStudentSummary(student)}<p class="academic-note">直播、录播和磨励课程暂不支持临时调班。</p><div class="flow-layout">${['from','to'].map((side,index)=>`${index?'<div class="flow-arrow">→</div>':''}<div class="flow-card"><h2 class="section-title">${side==='from'?'调出信息':'调入信息'}</h2>${aField('选择班级',tempMovePicker(side),true)}<div style="margin-top:16px">${aField('选择讲次',`<div id="temp-move-session-${side}">${tempMoveSessionSelect(side)}</div>`,true)}</div></div>`).join('')}</div><hr class="divider"><div class="form-grid"><div class="field full"><label for="temp-move-note">备注</label><textarea class="textarea" id="temp-move-note" maxlength="50" placeholder="请输入50字以内备注" oninput="tempMoveDraft().note=this.value">${esc(draft.note)}</textarea></div></div><div class="form-actions"><button class="btn" onclick="tempMoveCancel()">取消</button><button class="btn primary" onclick="finishFlow('tempMove')">确定</button></div></div>`;
 };
 const tempMovePreviousFinishFlow=finishFlow;
 finishFlow=function(type){

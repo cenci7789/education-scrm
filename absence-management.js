@@ -1,6 +1,6 @@
 // 缺勤、补课和挂起均引用原考勤记录，避免生成重复课时。
 const absenceViews=new Map();
-function absenceView(){const actor=studentTermActor();if(!absenceViews.has(actor))absenceViews.set(actor,{tab:'缺勤记录'});return absenceViews.get(actor)}
+function absenceView(){const actor=studentTermActor();if(!absenceViews.has(actor))absenceViews.set(actor,{tab:'缺勤记录'});const view=absenceViews.get(actor);if(!absenceTabs.includes(view.tab))view.tab='缺勤记录';return view}
 function absenceRows(){
   return a.attendance.flatMap((record,index)=>{
     const source=makeupSource(record);if(!source)return [];
@@ -9,31 +9,74 @@ function absenceRows(){
     return [{...source,index,resolution,original,plan:record.makeupPlan}];
   });
 }
-const absenceTabs=['缺勤记录','补课记录','课消记录','课时挂起'];
+const absenceTabs=['缺勤记录','补课记录','课时挂起'];
 function absenceTabRows(tab){
   return absenceRows().filter(row=>{
     if(tab==='缺勤记录')return !row.plan&&!row.resolution;
     if(tab==='补课记录')return Boolean(row.plan);
-    if(tab==='课消记录')return row.resolution?.type==='consume';
     if(tab==='课时挂起')return row.resolution?.type==='balance'&&Number(row.resolution.remainingUnits)>0;
     return false;
   });
 }
-function absenceSetTab(tab){if(!absenceTabs.includes(tab))return;absenceView().tab=tab;makeupListFilters().status='';academicRender()}
+function absenceSetTab(tab){if(!absenceTabs.includes(tab))return;a.absenceGroupSelection=null;absenceView().tab=tab;makeupListFilters().status='';academicRender()}
+function absenceGroupSelection(){
+  const selection=a.absenceGroupSelection;
+  return selection&&selection.actor===studentTermActor()&&state.page==='makeup'&&permissionCanVisit('makeup')&&absenceView().tab==='缺勤记录'?selection:null;
+}
+function absenceGroupStart(){
+  if(state.page!=='makeup'||!permissionCanVisit('makeup')||absenceView().tab!=='缺勤记录')return;
+  a.absenceGroupSelection={actor:studentTermActor(),items:[]};academicRender();
+}
+function absenceGroupCancel(){a.absenceGroupSelection=null;academicRender()}
+function absenceSameStudent(left,right){return left.student.id&&right.student.id?left.student.id===right.student.id:left.student===right.student}
+function absenceGroupToggle(index,checked){
+  const selection=absenceGroupSelection(),row=absenceTabRows('缺勤记录').find(r=>r.index===index);if(!selection||!row)return;
+  if(!checked)selection.items=selection.items.filter(item=>item.record!==row.record);
+  else if(!selection.items.some(item=>item.record===row.record)){
+    if(selection.items.some(item=>absenceSameStudent(item,row))){toast('同一学生只能选择一条缺勤记录');academicRender();return}
+    selection.items.push({record:row.record,key:makeupResolutionKey(row),student:row.student});
+  }
+  academicRender();
+}
+function absenceGroupSources(items){
+  if(!items?.length)return null;
+  const sources=[];
+  for(const item of items){
+    const source=a.attendance.includes(item.record)&&makeupSource(item.record);
+    if(!source||!absenceSameStudent(item,source)||makeupResolutionKey(source)!==item.key||!absenceCanArrange(source)||makeupExistingResolution(source)||sources.some(other=>absenceSameStudent(other,source)))return null;
+    sources.push(source);
+  }
+  return sources;
+}
+function absenceGroupConfirm(){
+  const selection=absenceGroupSelection();if(!selection)return;
+  if(!selection.items.length){toast('请先选择补课学生');return}
+  const sources=absenceGroupSources(selection.items);if(!sources){toast('所选缺勤记录已变更，请重新选择');return}
+  const source=sources[0];
+  a.absenceDraft={source:source.record,sourceKey:makeupResolutionKey(source),holdId:'',actor:studentTermActor(),groupItems:selection.items.map(item=>({...item})),mode:'choose'};
+  a.modal='absenceMakeup';absenceChooseIndividual();
+}
+function absenceGroupToolbar(){
+  if(absenceView().tab!=='缺勤记录')return '';
+  const selection=absenceGroupSelection();
+  return `<div style="margin-left:auto;padding:12px 20px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">${selection?`<span class="help">已选 ${selection.items.length} 人（含筛选隐藏项）</span><button class="btn small" onclick="absenceGroupCancel()">取消组班</button><button class="btn small primary" onclick="absenceGroupConfirm()" ${selection.items.length?'':'disabled'}>确定选择</button>`:'<button class="btn small primary" onclick="absenceGroupStart()">组班补课</button>'}</div>`;
+}
 function absenceStatus(row){return row.resolution?.type==='consume'?'已销课':row.resolution?.type==='balance'?'课时挂起':row.plan?(row.record.makeup||'已安排'):'待处理'}
 makeupPage=function(){
   if(makeupPickerDraft())return makeupPickerPage();
   const f=makeupListFilters(),tab=absenceView().tab,campuses=[...new Set(absenceRows().map(row=>row.cls.campus).filter(Boolean))];
-  return aHeading('缺勤管理','缺勤记录仅显示待处理项，处理后进入对应记录')+`<section class="card"><div class="tabs">${absenceTabs.map(name=>`<button class="tab${name===tab?' active':''}" onclick="absenceSetTab('${name}')">${name} ${absenceTabRows(name).length}</button>`).join('')}</div><div class="pad"><div class="toolbar"><div class="filters" style="margin-bottom:0"><input class="input" aria-label="搜索缺勤学生" placeholder="学生姓名、电话或ID" value="${esc(f.student)}" oninput="makeupSetListFilter('student',this.value)"><input class="input" aria-label="搜索缺勤课程或班级" placeholder="课程或班级名称" value="${esc(f.course)}" oninput="makeupSetListFilter('course',this.value)"><select class="select" aria-label="缺勤校区" onchange="makeupSetListFilter('campus',this.value)"><option value="">全部校区</option>${campuses.map(name=>`<option${f.campus===name?' selected':''}>${esc(name)}</option>`).join('')}</select><button class="btn small" onclick="Object.assign(makeupListFilters(),{student:'',course:'',campus:'',status:''});academicRender()">重置筛选</button></div></div><div id="makeup-list-results">${makeupListResults()}</div></div></section>`;
+  return aHeading('缺勤管理','缺勤记录仅显示待处理项；所有课消统一在“财务中心 → 课消记录”查看')+`<section class="card"><div class="tabs" style="align-items:center;flex-wrap:wrap">${absenceTabs.map(name=>`<button class="tab${name===tab?' active':''}" onclick="absenceSetTab('${name}')">${name} ${absenceTabRows(name).length}</button>`).join('')}${absenceGroupToolbar()}</div><div class="pad"><div class="toolbar"><div class="filters" style="margin-bottom:0"><input class="input" aria-label="搜索缺勤学生" placeholder="学生姓名、电话或ID" value="${esc(f.student)}" oninput="makeupSetListFilter('student',this.value)"><input class="input" aria-label="搜索缺勤课程或班级" placeholder="课程或班级名称" value="${esc(f.course)}" oninput="makeupSetListFilter('course',this.value)"><select class="select" aria-label="缺勤校区" onchange="makeupSetListFilter('campus',this.value)"><option value="">全部校区</option>${campuses.map(name=>`<option${f.campus===name?' selected':''}>${esc(name)}</option>`).join('')}</select><button class="btn small" onclick="Object.assign(makeupListFilters(),{student:'',course:'',campus:'',status:''});academicRender()">重置筛选</button></div></div><div id="makeup-list-results">${makeupListResults()}</div></div></section>`;
 };
 makeupListResults=function(){
   const tab=absenceView().tab,f=makeupListFilters(),contains=(values,query)=>!query.trim()||values.some(value=>String(value||'').toLowerCase().includes(query.trim().toLowerCase()));
   const rows=absenceTabRows(tab).filter(row=>contains([row.student.id,row.student.name,row.student.phone],f.student)&&contains([row.cls.name,row.cls.course],f.course)&&(!f.campus||row.cls.campus===f.campus));
-  const detailTitle=tab==='补课记录'?'补课安排':tab==='课时挂起'?'挂起课时':tab==='课消记录'?'课消信息':'处理状态';
-  return aTable(['学生 / 联系电话','课程 / 原班级','校区','缺勤课节','缺勤情况',detailTitle,'操作'],rows.map(row=>{
+  const selection=absenceGroupSelection();
+  const detailTitle=tab==='补课记录'?'补课安排':tab==='课时挂起'?'挂起课时':'处理状态';
+  return aTable([...(selection?['选择']:[]),'学生 / 联系电话','课程 / 原班级','校区','缺勤课节','缺勤情况',detailTitle,'操作'],rows.map(row=>{
     const {record,student,cls,index,original,plan,resolution}=row;
-    const detail=tab==='补课记录'?`<strong>${plan.type==='individual'?'单独补课':'跟班补课'}</strong> <span class="pill">${esc(record.makeup||'已安排')}</span><div>${esc(plan.className||cls.course)}</div><div class="help">${esc(plan.session||'')} · ${esc(plan.date)} ${esc(plan.time)}<br>${esc(plan.teacher||'—')} / ${esc(plan.campus||'—')} / ${esc(plan.room||'—')}</div>`:tab==='课时挂起'?`<strong>${Number(resolution.remainingUnits)||0} 次</strong><div class="help">${esc(studentProfileTime(resolution.recordedAt))}</div>`:tab==='课消记录'?`<strong>${Number(resolution.units)||1} 次 · 按出勤核销</strong><div class="help">${esc(studentProfileTime(resolution.recordedAt))}<br>${esc(resolution.operator?.name||'—')}</div>`:`${absenceStatus(row)}${plan?`<div class="help">${plan.type==='individual'?'单独补课':'跟班补课'} · ${esc(plan.date)}</div>`:''}`;
-    return `<tr><td><strong>${esc(student.name)}</strong><div class="help">${esc(student.id)} · ${esc(student.phone||'—')}</div></td><td>${esc(cls.course)}<div class="help">${esc(cls.name)}</div></td><td>${esc(cls.campus||'—')}</td><td>${esc(record.session)}<div class="help">${esc(record.date)} ${esc(record.time)}</div></td><td>${esc(original)}</td><td>${detail}</td><td><div class="actions">${absenceActions(row,tab)}</div></td></tr>`;
+    const detail=tab==='补课记录'?`<strong>${plan.type==='individual'?'单独补课':'跟班补课'}</strong> <span class="pill">${esc(record.makeup||'已安排')}</span><div>${esc(plan.className||cls.course)}</div><div class="help">${esc(plan.session||'')} · ${esc(plan.date)} ${esc(plan.time)}<br>${esc(plan.teacher||'—')} / ${esc(plan.campus||'—')} / ${esc(plan.room||'—')}</div>`:tab==='课时挂起'?`<strong>${Number(resolution.remainingUnits)||0} 次</strong><div class="help">${esc(studentProfileTime(resolution.recordedAt))}</div>`:`${absenceStatus(row)}${plan?`<div class="help">${plan.type==='individual'?'单独补课':'跟班补课'} · ${esc(plan.date)}</div>`:''}`;
+    const selected=selection?.items.some(item=>item.record===record),duplicate=selection?.items.some(item=>item.record!==record&&absenceSameStudent(item,row));
+    return `<tr>${selection?`<td><input type="checkbox" aria-label="选择${esc(student.name)}的${esc(record.session)}" ${selected?'checked':''} ${duplicate?'disabled title="同一学生只能选择一次"':''} onchange="absenceGroupToggle(${index},this.checked)"></td>`:''}<td><strong>${esc(student.name)}</strong><div class="help">${esc(student.id)} · ${esc(student.phone||'—')}</div></td><td>${esc(cls.course)}<div class="help">${esc(cls.name)}</div></td><td>${esc(cls.campus||'—')}</td><td>${esc(record.session)}<div class="help">${esc(record.date)} ${esc(record.time)}</div></td><td>${esc(original)}</td><td>${detail}</td><td><div class="actions">${selection?'—':absenceActions(row,tab)}</div></td></tr>`;
   }))+(!rows.length?`<div class="empty">暂无符合条件的${tab}</div>`:'')+`<div class="data-bar">共 ${rows.length} 条记录</div>`;
 };
 function absenceActions(row,tab){
@@ -97,11 +140,13 @@ function absenceIndividualChange(key,value){
   draft[key]=value;if(key==='campus'){draft.teacher='';draft.room='';academicRender()}
 }
 function absenceIndividualModal(source){
-  const draft=a.absenceDraft,select=(key,label,options)=>aField(label,`<select class="select" aria-label="${label}" onchange="absenceIndividualChange('${key}',this.value)"><option value="">请选择${label}</option>${options.map(value=>`<option${draft[key]===value?' selected':''}>${esc(value)}</option>`).join('')}</select>`,true);
-  return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="absence-individual-title"><div class="modal-head"><h2 id="absence-individual-title">单独补课</h2><button class="btn small" aria-label="关闭" onclick="absenceCancel()">×</button></div><p><strong>${esc(source.student.name)}</strong> · ${esc(source.cls.course)} · 原${esc(source.record.session)}</p><div class="form-grid">${select('campus','补课校区',state.campuses.filter(c=>c.active).map(c=>c.name))}${select('teacher','补课教师',absenceTeacherOptions(draft.campus))}${select('room','补课教室',classCampusRooms(draft.campus).map(r=>r.name))}${[['date','补课日期','date'],['start','开始时间','time'],['end','结束时间','time']].map(([key,label,type])=>aField(label,`<input class="input" aria-label="${label}" type="${type}" value="${esc(draft[key])}" ${type==='date'?`min="${scheduleDateText(new Date())}"`:''} onchange="absenceIndividualChange('${key}',this.value)">`,true)).join('')}</div><p class="help">确认后在“补课记录”中生成一个补课课节，并在该记录上考勤。</p><div class="modal-actions"><button class="btn" onclick="absenceCancel()">取消</button><button class="btn primary" onclick="absenceIndividualSave()">确认补课</button></div></section></div>`;
+  const draft=a.absenceDraft,groupSources=draft.groupItems?absenceGroupSources(draft.groupItems):null,select=(key,label,options)=>aField(label,`<select class="select" aria-label="${label}" onchange="absenceIndividualChange('${key}',this.value)"><option value="">请选择${label}</option>${options.map(value=>`<option${draft[key]===value?' selected':''}>${esc(value)}</option>`).join('')}</select>`,true);
+  return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="absence-individual-title"><div class="modal-head"><h2 id="absence-individual-title">单独补课</h2><button class="btn small" aria-label="关闭" onclick="absenceCancel()">×</button></div>${groupSources?`<p>组班补课 · 共 ${groupSources.length} 人</p><div style="max-height:220px;overflow:auto">${aTable(['学生','课程 / 原班级','原缺勤课节'],groupSources.map(row=>`<tr><td>${esc(row.student.name)}</td><td>${esc(row.cls.course)} / ${esc(row.cls.name)}</td><td>${esc(row.record.session)} · ${esc(row.record.date)}</td></tr>`))}</div>`:`<p><strong>${esc(source.student.name)}</strong> · ${esc(source.cls.course)} · 原${esc(source.record.session)}</p>`}<div class="form-grid">${select('campus','补课校区',state.campuses.filter(c=>c.active).map(c=>c.name))}${select('teacher','补课教师',absenceTeacherOptions(draft.campus))}${select('room','补课教室',classCampusRooms(draft.campus).map(r=>r.name))}${[['date','补课日期','date'],['start','开始时间','time'],['end','结束时间','time']].map(([key,label,type])=>aField(label,`<input class="input" aria-label="${label}" type="${type}" value="${esc(draft[key])}" ${type==='date'?`min="${scheduleDateText(new Date())}"`:''} onchange="absenceIndividualChange('${key}',this.value)">`,true)).join('')}</div><p class="help">${groupSources?'所选学生共用本次补课安排；补课记录仍按人员分条展示，分别考勤。':'确认后在“补课记录”中生成一个补课课节，并在该记录上考勤。'}</p><div class="modal-actions"><button class="btn" onclick="absenceCancel()">取消</button><button class="btn primary" onclick="absenceIndividualSave()">确认补课</button></div></section></div>`;
 }
 function absenceIndividualSave(){
   const source=absenceDraftSource(),draft=a.absenceDraft;if(a.modal!=='absenceMakeup'||draft?.mode!=='individual'||!absenceCanArrange(source))return;
+  const sources=draft.groupItems?absenceGroupSources(draft.groupItems):[source];
+  if(!sources){toast('所选缺勤记录已变更，请重新选择；本次未安排补课');return}
   if((makeupExistingResolution(source)?.id||'')!==draft.holdId){toast('挂起记录已变更，请重新打开');return}
   if(!state.campuses.some(c=>c.active&&c.name===draft.campus)||!absenceTeacherOptions(draft.campus).includes(draft.teacher)||!classCampusRooms(draft.campus).some(r=>r.name===draft.room)){toast('请选择有效的校区、教师和教室');return}
   if(!scheduleDate(draft.date)||![draft.start,draft.end].every(time=>/^([01]\d|2[0-3]):[0-5]\d$/.test(time))){toast('请填写完整的补课日期和时间');return}
@@ -109,7 +154,13 @@ function absenceIndividualSave(){
   if(start<=Date.now()||end<=start){toast('请选择尚未开始的时间，结束时间须晚于开始时间');return}
   const conflicts=[...scheduleLessons(),...absenceRows().filter(row=>row.plan?.type==='individual').map(row=>({teacher:row.plan.teacher,campus:row.plan.campus,room:row.plan.room,start:Date.parse(row.plan.date+'T'+attendanceTimeKey(row.plan.time).slice(0,5)),end:Date.parse(row.plan.date+'T'+attendanceTimeKey(row.plan.time).slice(-5))}))];
   if(conflicts.some(event=>event.start<end&&start<event.end&&(event.teacher===draft.teacher||(event.campus===draft.campus&&event.room===draft.room)))){toast('教师或教室在该时段已有排课，请调整补课时间');return}
-  if(!absenceCommitPlan(source,{type:'individual',className:'单独补课',course:source.cls.course,session:'补课第1讲',date:draft.date,time:draft.start+'–'+draft.end,campus:draft.campus,teacher:draft.teacher,room:draft.room}))return;
+  const capacity=Number(classCampusRooms(draft.campus).find(room=>room.name===draft.room)?.capacity);
+  if(draft.groupItems&&capacity>0&&sources.length>capacity){toast('所选教室容量不足，请更换教室');return}
+  // Validate the entire selection before writing any student plan. Each plan retains its own absence and billing source.
+  const groupId=draft.groupItems?'makeup-group-'+crypto.randomUUID():null;
+  for(const member of sources)absenceCommitPlan(member,{type:'individual',className:'单独补课',course:member.cls.course,session:'补课第1讲',date:draft.date,time:draft.start+'–'+draft.end,campus:draft.campus,teacher:draft.teacher,room:draft.room,...(groupId?{groupId}:{} )});
+  if(groupId)Object.assign(makeupListFilters(),{student:'',course:'',campus:'',status:''});
+  a.absenceGroupSelection=null;
   absenceView().tab='补课记录';absenceCancel();toast('单独补课已安排');
 }
 function absenceHoldConsumeOpen(index){
@@ -130,6 +181,7 @@ function absenceChooseFollow(){
 }
 function absenceMakeupModal(){
   const source=absenceDraftSource();if(!source)return `<div class="modal-backdrop"><section class="modal"><p>记录已变更，请重新打开。</p><button class="btn" onclick="absenceCancel()">关闭</button></section></div>`;
+  if(a.absenceDraft.groupItems&&!absenceGroupSources(a.absenceDraft.groupItems))return `<div class="modal-backdrop"><section class="modal"><p>所选缺勤记录已变更，请返回重新选择。</p><button class="btn" onclick="absenceCancel()">返回</button></section></div>`;
   if(a.absenceDraft.mode==='individual')return absenceIndividualModal(source);
   if(a.absenceDraft.mode==='consumeHold')return absenceHoldConsumeModal(source);
   return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="absence-makeup-title"><div class="modal-head"><h2 id="absence-makeup-title">补课 · 选择补课方式</h2><button class="btn small" aria-label="关闭" onclick="absenceCancel()">×</button></div><p><strong>${esc(source.student.name)}</strong> · ${esc(source.cls.course)} · ${esc(source.record.session)}</p><div class="form-actions"><button class="btn primary" onclick="absenceChooseFollow()">跟班补课</button><button class="btn" onclick="absenceChooseIndividual()">单独补课</button></div><p class="help">跟班补课：选择已有班级的课节。单独补课：为该学生单独安排补课时间。</p></section></div>`;
@@ -187,6 +239,7 @@ saveAttendance=function(index){if(a.attendance[index]?.makeupPlan){toast('已安
 const absencePreviousModal=modalPage;
 modalPage=function(){if(a.modal==='absenceMakeup')return absenceMakeupModal();if(a.modal==='absencePlan')return absencePlanModal();if(a.modal==='absenceAttendance')return absenceAttendanceModal();return absencePreviousModal()};
 function absenceCleanup(){
+  if(a.absenceGroupSelection&&(state.page!=='makeup'||a.absenceGroupSelection.actor!==studentTermActor()||!permissionCanVisit('makeup')||absenceView().tab!=='缺勤记录'))a.absenceGroupSelection=null;
   if(a.absenceDraft&&(state.page!=='makeup'||a.absenceDraft.actor!==studentTermActor())){a.absenceDraft=null;if(a.modal==='absenceMakeup')a.modal=null}
   if(a.absencePlanView&&(state.page!=='makeup'||a.absencePlanView.actor!==studentTermActor())){a.absencePlanView=null;if(a.modal==='absencePlan')a.modal=null}
   if(a.absenceAttendanceDraft&&(state.page!=='makeup'||a.absenceAttendanceDraft.actor!==studentTermActor())){a.absenceAttendanceDraft=null;if(a.modal==='absenceAttendance')a.modal=null}
